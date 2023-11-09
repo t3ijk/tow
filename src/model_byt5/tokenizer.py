@@ -14,8 +14,9 @@ class Byt5Tokenizer:
         self.sentinel_tokens = [f"<extra_id_{x}>" for x in range(125)]
 
         self.all_tokens = [self.pad_token, self.eos_token, self.unk_token, *self.vocabulary_tokens, *self.sentinel_tokens]
-        self.special_tokens = [self.pad_token, self.eos_token, self.unk_token, *self.sentinel_tokens]
 
+        # all_tokens excludes vocabulary_tokens
+        self.special_tokens = list(filter(lambda token: token not in self.vocabulary_tokens, self.all_tokens))
 
     def text2tokens(self, text):
         delimiters  = f"({'|'.join(self.special_tokens)})"
