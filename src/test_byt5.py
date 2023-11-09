@@ -1,8 +1,8 @@
 
-from model_byt5.tokenizer import Byt5Tokenizer
+from model_byt5.tokenizer import Tokenizer_byt5
 import json
 def test_tokenizer(input):
-    tk = Byt5Tokenizer()
+    tk = Tokenizer_byt5()
     print('--------------------------------')
     print(input)
     tokens = tk.text2tokens(input)
@@ -28,4 +28,4 @@ def test_tokenizer(input):
 test_tokenizer('qwew<pad>qeqwewqe</s>qwewqeqw<unk>ewqe')
 test_tokenizer('hello world!')
 test_tokenizer('你好世界！')
-test_tokenizer('你好世界！hello world! \n1 \t !@#$%^&* <<<<extra_id_119> 123456')
+test_tokenizer('你好世界！hello world! \n1 \t !@#$%^&* <<<<extra_id_119>123456')

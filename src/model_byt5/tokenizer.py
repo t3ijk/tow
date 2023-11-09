@@ -1,6 +1,6 @@
 import re
 
-class Byt5Tokenizer:
+class Tokenizer_byt5:
 
     def __init__(self):
         self.pad_token = "<pad>" # id 0
