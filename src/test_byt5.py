@@ -1,6 +1,6 @@
 
-from model_byt5.tokenizer import text2tokens, tokens2ids, ids2tokens, tokens2text, text_remove_split_tokens
-
+from model_byt5.tokenizer import text2tokens, tokens2ids, ids2tokens, tokens2text, text_clean_special_tokens, all_tokens
+import json
 def test_tokenizer(input):
     print('--------------------------------')
     print(input)
@@ -17,11 +17,14 @@ def test_tokenizer(input):
     output = tokens2text(tokens2)
     # print(output)    
 
-    input_cleaned = ''.join(text_remove_split_tokens(input))
+    input_cleaned = ''.join(text_clean_special_tokens(input))
     print(input_cleaned)
     if input_cleaned != output:
         raise Exception(input_cleaned, output)
+    with open('tokenizer_tokens.json', 'w') as f:
+        f.write(json.dumps(all_tokens, indent=4))
 
+json.dumps(all_tokens)
 
 test_tokenizer('qwew<pad>qeqwewqe</s>qwewqeqw<unk>ewqe')
 test_tokenizer('hello world!')

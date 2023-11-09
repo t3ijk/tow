@@ -1,4 +1,3 @@
-
 import re
 
 # 0-2 tokens
@@ -6,11 +5,13 @@ pad_token = "<pad>" # 0
 eos_token = "</s>" # 1
 unk_token = "<unk>" # 3
 
-# utf8 byte token, next 256
-sub_word_tokens = [chr(x) for x in range(256)]
+# vocabulary tokens, utf8 bytes, next 256
+vocabulary_tokens = [chr(x) for x in range(256)]
 
-# sentinel tokens, next 125
-additional_special_tokens = [
+# sentinel tokens, extra_ids, next 125
+
+# sentinel_tokens = [f"<extra_id_{x}>" for x in range(125)]
+sentinel_tokens = [
         "<extra_id_0>",
         "<extra_id_1>",
         "<extra_id_2>",
@@ -137,15 +138,17 @@ additional_special_tokens = [
         "<extra_id_123>",
         "<extra_id_124>"
     ]
-vocab_tokens = [unk_token, eos_token, pad_token, *sub_word_tokens, *additional_special_tokens]
-split_tokens = [unk_token, eos_token, pad_token, *additional_special_tokens]
+
+
+all_tokens = [unk_token, eos_token, pad_token, *vocabulary_tokens, *sentinel_tokens]
+special_tokens = [unk_token, eos_token, pad_token, *sentinel_tokens]
 
 def text2tokens(text):
-    delimiters  = f"({'|'.join(split_tokens)})"
+    delimiters  = f"({'|'.join(special_tokens)})"
     
     results = []
     for str in re.split(delimiters , text):
-        if str in split_tokens:
+        if str in special_tokens:
             results.append(str)
         else:
             encoded = str.encode('utf-8')
@@ -159,15 +162,15 @@ def text2tokens(text):
     return results
 
 def tokens2ids(tokens):
-    return [vocab_tokens.index(token) for token in tokens]
+    return [all_tokens.index(token) for token in tokens]
 
 def ids2tokens(ids):
-    return [vocab_tokens[ind] for ind in ids]
+    return [all_tokens[ind] for ind in ids]
 
 def tokens2text(tokens):
-    filtered = filter(lambda token: token not in split_tokens, tokens)
+    filtered = filter(lambda token: token not in special_tokens, tokens)
     return bytearray([ord(c)  for c in list(filtered)]).decode("utf-8")
 
-def text_remove_split_tokens(text):
-    delimiters  = f"{'|'.join(split_tokens)}"
+def text_clean_special_tokens(text):
+    delimiters  = f"{'|'.join(special_tokens)}"
     return re.split(delimiters , text)
