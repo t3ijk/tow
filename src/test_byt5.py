@@ -28,6 +28,4 @@ def test_tokenizer(input):
 test_tokenizer('qwew<pad>qeqwewqe</s>qwewqeqw<unk>ewqe')
 test_tokenizer('hello world!')
 test_tokenizer('你好世界！')
-test_tokenizer('wqwq的武器武器大全气得我的武器33 我去打网球的武器无穷大无穷大-3243253-=121325434365366')
-
-
+test_tokenizer('你好世界！hello world! \n1 \t !@#$%^&* <<<<extra_id_119> 123456')
