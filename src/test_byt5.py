@@ -22,9 +22,8 @@ def test_tokenizer(input):
     print(input_cleaned)
     if input_cleaned != output:
         raise Exception(input_cleaned, output)
-    with open('tokenizer_tokens.json', 'w') as f:
-        f.write(json.dumps(tk.all_tokens, indent=4))
-    json.dumps(tk.all_tokens)    
+    with open('tokenizer_config.json', 'w') as f:
+        f.write(json.dumps(tk.get_config(), indent=4))
 
 test_tokenizer('qwew<pad>qeqwewqe</s>qwewqeqw<unk>ewqe')
 test_tokenizer('hello world!')
