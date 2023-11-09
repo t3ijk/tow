@@ -72,6 +72,6 @@ class Tokenizer_byt5:
         }
         return config
        
-    def utf8string2ids(self, utf8str):
-        offset = 3
-        return [x + offset for x in list(utf8str.encode("utf-8"))]
+    # def utf8string2ids(self, utf8str):
+    #     offset = 3
+    #     return [x + offset for x in list(utf8str.encode("utf-8"))]
