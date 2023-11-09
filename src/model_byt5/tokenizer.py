@@ -43,12 +43,24 @@ class Tokenizer_byt5:
         return [self.all_tokens[ind] for ind in ids]
 
     def tokens2text(self, tokens):
-        filtered = filter(lambda token: token not in self.special_tokens, tokens)
-        return bytearray([ord(c)  for c in list(filtered)]).decode("utf-8")
+        array = []
+        sub_array = []
+        for token in tokens:
+            if token in self.special_tokens:
+                if len(sub_array) > 0:
+                    array.append(bytearray([ord(c)  for c in sub_array]).decode("utf-8"))
+                    sub_array = []
+                array.append(token)
+            else:
+                sub_array.append(token)
+        if len(sub_array) > 0:
+            array.append(bytearray([ord(c)  for c in sub_array]).decode("utf-8"))       
+
+        return ''.join(array)
 
     def text_clean_special_tokens(self, text):
         delimiters  = f"{'|'.join(self.special_tokens)}"
-        return re.split(delimiters , text)
+        return ''.join(re.split(delimiters , text))
 
     def get_config(self):
         config = {
@@ -60,3 +72,6 @@ class Tokenizer_byt5:
         }
         return config
        
+    def utf8string2ids(self, utf8str):
+        offset = 3
+        return [x + offset for x in list(utf8str.encode("utf-8"))]
