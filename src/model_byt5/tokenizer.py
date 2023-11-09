@@ -1,47 +1,61 @@
 import re
 
-# 0-2 tokens
-pad_token = "<pad>" # 0
-eos_token = "</s>" # 1
-unk_token = "<unk>" # 3
+class Byt5Tokenizer:
 
-# vocabulary tokens, utf8 bytes, next 256
-vocabulary_tokens = [chr(x) for x in range(256)]
+    def __init__(self, name=''):
+        self.pad_token = "<pad>" # 0
+        self.eos_token = "</s>" # 1
+        self.unk_token = "<unk>" # 2
 
-# sentinel tokens, extra_ids, next 125
-sentinel_tokens = [f"<extra_id_{x}>" for x in range(125)]
+        # vocabulary tokens, utf8 bytes, next 256
+        self.vocabulary_tokens = [chr(x) for x in range(256)]
 
-all_tokens = [unk_token, eos_token, pad_token, *vocabulary_tokens, *sentinel_tokens]
-special_tokens = [unk_token, eos_token, pad_token, *sentinel_tokens]
+        # sentinel tokens, extra_ids, next 125
+        self.sentinel_tokens = [f"<extra_id_{x}>" for x in range(125)]
 
-def text2tokens(text):
-    delimiters  = f"({'|'.join(special_tokens)})"
-    
-    results = []
-    for str in re.split(delimiters , text):
-        if str in special_tokens:
-            results.append(str)
+        self.all_tokens = [self.pad_token, self.eos_token, self.unk_token, *self.vocabulary_tokens, *self.sentinel_tokens]
+        self.special_tokens = [self.pad_token, self.eos_token, self.unk_token, *self.sentinel_tokens]
+
+
+    def text2tokens(self, text):
+        delimiters  = f"({'|'.join(self.special_tokens)})"
+        
+        results = []
+        for str in re.split(delimiters , text):
+            if str in self.special_tokens:
+                results.append(str)
+            else:
+                encoded = str.encode('utf-8')
+                results.extend([chr(code) for code in bytearray(encoded)])
+
+        if results[-1] in [self.eos_token, self.unk_token, self.pad_token]:
+            pass
         else:
-            encoded = str.encode('utf-8')
-            results.extend([chr(code) for code in bytearray(encoded)])
+            results.append(self.eos_token)
 
-    if results[-1] in [eos_token, unk_token, pad_token]:
-        pass
-    else:
-        results.append(eos_token)
+        return results
 
-    return results
+    def tokens2ids(self, tokens):
+        return [self.all_tokens.index(token) for token in tokens]
 
-def tokens2ids(tokens):
-    return [all_tokens.index(token) for token in tokens]
+    def ids2tokens(self, ids):
+        return [self.all_tokens[ind] for ind in ids]
 
-def ids2tokens(ids):
-    return [all_tokens[ind] for ind in ids]
+    def tokens2text(self, tokens):
+        filtered = filter(lambda token: token not in self.special_tokens, tokens)
+        return bytearray([ord(c)  for c in list(filtered)]).decode("utf-8")
 
-def tokens2text(tokens):
-    filtered = filter(lambda token: token not in special_tokens, tokens)
-    return bytearray([ord(c)  for c in list(filtered)]).decode("utf-8")
+    def text_clean_special_tokens(self, text):
+        delimiters  = f"{'|'.join(self.special_tokens)}"
+        return re.split(delimiters , text)
 
-def text_clean_special_tokens(text):
-    delimiters  = f"{'|'.join(special_tokens)}"
-    return re.split(delimiters , text)
+    def get_config(self):
+        config = {
+            "pad_token": self.pad_token,
+            "eos_token": self.eos_token,
+            "unk_token": self.unk_token,
+            "vocabulary_tokens": self.vocabulary_tokens,
+            "sentinel_tokens": self.sentinel_tokens,
+        }
+        return config
+       
