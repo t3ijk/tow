@@ -2,15 +2,15 @@ import re
 
 class Byt5Tokenizer:
 
-    def __init__(self, name=''):
-        self.pad_token = "<pad>" # 0
-        self.eos_token = "</s>" # 1
-        self.unk_token = "<unk>" # 2
+    def __init__(self):
+        self.pad_token = "<pad>" # id 0
+        self.eos_token = "</s>"  # id 1
+        self.unk_token = "<unk>" # id 2
 
-        # vocabulary tokens, utf8 bytes, next 256
+        # vocabulary tokens, utf8 bytes, next 256 ids
         self.vocabulary_tokens = [chr(x) for x in range(256)]
 
-        # sentinel tokens, extra_ids, next 125
+        # sentinel tokens, extra_ids, next 125 ids
         self.sentinel_tokens = [f"<extra_id_{x}>" for x in range(125)]
 
         self.all_tokens = [self.pad_token, self.eos_token, self.unk_token, *self.vocabulary_tokens, *self.sentinel_tokens]
