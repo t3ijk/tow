@@ -11,9 +11,7 @@ def test_tokenizer(input):
     print('ids: ', ids)
     tokens2 = tk.ids2tokens(ids)
     # print('tokens2: ', tokens2)
-
-    if tokens != tokens2:
-        raise Exception(tokens, tokens2)    
+    assert tokens == tokens2 
 
     output = tk.tokens2text(tokens2)
     print('output: ', output)
@@ -23,8 +21,8 @@ def test_tokenizer(input):
 
     input_cleaned = tk.text_clean_special_tokens(input)
     print('output_cleaned: ', output_cleaned)
-    if input_cleaned != output_cleaned:
-        raise Exception(input_cleaned, output)
+
+    assert input_cleaned == output_cleaned
     with open('tokenizer_config.json', 'w') as f:
         f.write(json.dumps(tk.get_config(), indent=4))
 
