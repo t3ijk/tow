@@ -10,10 +10,12 @@ class Tokenizer_byt5:
         # vocabulary tokens, utf8 bytes, next 256 ids
         self.vocabulary_tokens = [chr(x) for x in range(256)]
 
-        # sentinel tokens, extra_ids, next 125 ids
-        self.sentinel_tokens = [f"<extra_id_{x}>" for x in range(125)]
+        # extra_ids, next 125 ids
+        # According "Rather than adding 100 new tokens for the sentinels, we find it sufficient to reuse the final 100 byte IDs". Byt5 paper https://aclanthology.org/2022.tacl-1.17.pdf
+        # So 'extra_ids' not used as sentinel tokens, and in pre-training 100 sentinels from [258] to [159], values not in range (U+0000, U+007F), so must be safe. 
+        self.extra_tokens = [f"<extra_id_{x}>" for x in range(125)]
 
-        self.all_tokens = [self.pad_token, self.eos_token, self.unk_token, *self.vocabulary_tokens, *self.sentinel_tokens]
+        self.all_tokens = [self.pad_token, self.eos_token, self.unk_token, *self.vocabulary_tokens, *self.extra_tokens]
 
         # all_tokens excludes vocabulary_tokens
         self.special_tokens = list(filter(lambda token: token not in self.vocabulary_tokens, self.all_tokens))
@@ -68,7 +70,7 @@ class Tokenizer_byt5:
             "eos_token": self.eos_token,
             "unk_token": self.unk_token,
             "vocabulary_tokens": self.vocabulary_tokens,
-            "sentinel_tokens": self.sentinel_tokens,
+            "extra_tokens": self.extra_tokens,
         }
         return config
        

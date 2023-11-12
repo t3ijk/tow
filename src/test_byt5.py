@@ -1,5 +1,7 @@
 
 from model_byt5.tokenizer import Tokenizer_byt5
+from model_byt5.model import Transformer_byt5
+
 import json
 def test_tokenizer(input):
     tk = Tokenizer_byt5()
@@ -32,3 +34,13 @@ test_tokenizer('你好世界！')
 test_tokenizer('你好世界！hello world! \n1 \t !@#$%^&* <<<<extra_id_119>123456')
 test_tokenizer('Life is like a box of chocolates.')
 
+
+def test_model():
+    print('--------------------------------')
+    model = Transformer_byt5()
+    print(model)
+
+
+
+
+test_model()
