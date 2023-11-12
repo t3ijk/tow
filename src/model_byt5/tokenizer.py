@@ -65,13 +65,13 @@ class Tokenizer_byt5:
         return ''.join(re.split(delimiters , text))
 
     def get_config(self):
-        config = {
-            "pad_token": self.pad_token,
-            "eos_token": self.eos_token,
-            "unk_token": self.unk_token,
-            "vocabulary_tokens": self.vocabulary_tokens,
-            "extra_tokens": self.extra_tokens,
-        }
+        config = [
+            {"pad_token": self.pad_token},
+            {"eos_token": self.eos_token},
+            {"unk_token": self.unk_token},
+            {"vocabulary_tokens": self.vocabulary_tokens},
+            {"extra_tokens": self.extra_tokens},
+        ]
         return config
        
     # def utf8string2ids(self, utf8str):
