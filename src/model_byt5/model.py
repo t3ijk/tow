@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from dataclasses import dataclass
 from model_byt5.utils import _relative_position_bucket
+import math
 
 @dataclass
 class Config_byt5:
@@ -30,14 +31,62 @@ class Config_byt5:
 CONFIG_T5: Config_byt5 = Config_byt5()
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self):
+    def __init__(self, need_add_position_encoding=False):
         super().__init__()
+        # https://arxiv.org/pdf/1706.03762.pdf
+        # Linear weight together for all heads
+        self.WQ = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
+        self.WK = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
+        self.WV = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
 
+        # Linear back to d_model
+        self.linear = nn.Linear(CONFIG_T5.num_heads * CONFIG_T5.d_kv, CONFIG_T5.d_model, bias=False)
+        self.need_add_position_encoding = need_add_position_encoding
+        if self.need_add_position_encoding:
+            self.input_positional_encoding = PositionalEncoding()
 
-class MaskedMultiHeadAttention(nn.Module):
-    def __init__(self):
-        super().__init__()
+    def forward(self, hidden_states):
+        batch = hidden_states.shape[0]
+        sequence_length = hidden_states.shape[1]
 
+        # hidden_states, (batch, sequence_length, d_model)
+        # 1. map hidden_states to q_heads, -> (batch, sequence_length, num_heads * d_kv)
+        # 2. split q_heads to q_head, -> (batch, sequence_length, num_heads, d_kv)
+        # 3. permute -> (batch, num_heads, sequence_length, d_kv)
+        self.q = self.WQ(hidden_states).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        self.k = self.WK(hidden_states).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        self.v = self.WV(hidden_states).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+
+        # dot product
+        logits = torch.matmul(
+            self.q, self.k.transpose(3, 2)
+        )
+        
+        # first layer need_add_position_encoding
+        if self.need_add_position_encoding:
+            # (batch, num_heads, query_length, key_length) + (1, num_heads, query_length, key_length)
+            logits += self.input_positional_encoding(CONFIG_T5.d_kv, CONFIG_T5.d_kv)
+
+        # scaled
+        logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
+
+        # (batch, num_heads, query_length, key_length)
+        attention_weights = nn.functional.softmax(logits.float(), dim=-1).type_as(
+            logits
+        )
+
+        # new values for the queries, (batch, num_heads, query_length, d_kv)
+        v_output = torch.matmul(attention_weights, self.v)
+
+        # concat heads, (batch, query_length, num_heads*d_kv)
+        v_output = v_output.transpose(2, 1).reshape([batch, sequence_length, CONFIG_T5.d_kv * CONFIG_T5.num_heads])
+
+        # project back to d_model, (batch, query_length, d_model)
+        v_output = self.linear(v_output)
+
+        return v_output
+
+CONFIG_T5.d_kv, CONFIG_T5.d_kv
 
 class LayerNormal(nn.Module):
     def __init__(self, hidden_size=CONFIG_T5.d_model, eps=CONFIG_T5.layer_norm_epsilon):
@@ -60,16 +109,23 @@ class LayerNormal(nn.Module):
         if self.weight.dtype in [torch.float16, torch.bfloat16]:
             hidden_states = hidden_states.to(self.weight.dtype)
 
+        # (batch, query_length, d_model)
         return self.weight * hidden_states
-       
 
 class FeedForward(nn.Module):
     def __init__(self):
         super().__init__()
-
+        self.wi = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
+        self.wo = nn.Linear(CONFIG_T5.d_ff, CONFIG_T5.d_model, bias=False)
+        self.act = nn.ReLU()
+    def forward(self, hidden_states):
+        hidden_states = self.wi(hidden_states)
+        hidden_states = self.act(hidden_states)
+        hidden_states = self.wo(hidden_states)
+        return hidden_states
 
 class EncoderLayer(nn.Module):
-    def __init__(self):
+    def __init__(self, layer_index):
         """
         paper: https://arxiv.org/pdf/1910.10683.pdf
         The encoder consists
@@ -83,24 +139,50 @@ class EncoderLayer(nn.Module):
         """
         super().__init__()
         self.normal1 = LayerNormal()
-        # skip residual
-        self.multi_head_attention = MultiHeadAttention()
-        # add residual
+        self.multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
         self.normal2 = LayerNormal()
-        # skip residual
         self.feed_forward = FeedForward()
-        # add residual
 
-
+    def forward(self, hidden_states):
+        # main and residual hidden_states
+        hidden_states = self.normal1(hidden_states)
+        residual = hidden_states
+        hidden_states = self.multi_head_attention(hidden_states)
+        hidden_states = hidden_states + residual
+        hidden_states = self.normal2(hidden_states)
+        residual = hidden_states
+        hidden_states = self.feed_forward(hidden_states)
+        hidden_states = hidden_states + residual
+        return hidden_states
+    
 class DecoderLayer(nn.Module):
-    def __init__(self):
+    def __init__(self, layer_index):
         super().__init__()
-        self.masked_multi_head_attention = MaskedMultiHeadAttention()
-        self.add_and_normal1 = LayerNormal()
+        self.normal1 = LayerNormal()
+        self.masked_multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
+        self.normal2 = LayerNormal()
+        # encoder-decoder attention 
         self.multi_head_attention = MultiHeadAttention()
-        self.add_and_normal2 = LayerNormal()
+        self.normal3 = LayerNormal()
         self.feed_forward = FeedForward()
-        self.add_and_normal3 = LayerNormal()
+
+    def forward(self, hidden_states):
+        # main and residual hidden_states
+        hidden_states = self.normal1(hidden_states)
+        residual = hidden_states
+        hidden_states = self.masked_multi_head_attention(hidden_states)
+        hidden_states = hidden_states + residual
+        hidden_states = self.normal2(hidden_states)
+        residual = hidden_states
+        hidden_states = self.multi_head_attention(hidden_states)
+        hidden_states = hidden_states + residual
+        hidden_states = self.normal3(hidden_states)
+        residual = hidden_states
+        hidden_states = self.feed_forward(hidden_states)
+        hidden_states = hidden_states + residual
+        return hidden_states
+        
+
 
 
 class PositionalEncoding(nn.Module):
@@ -111,7 +193,6 @@ class PositionalEncoding(nn.Module):
         )
 
     def forward(self, query_length, key_length, device=None, bidirectional=True):
-        """Compute binned relative position bias"""
         if device is None:
             device = self.relative_attention_bias.weight.device
         context_position = torch.arange(query_length, dtype=torch.long, device=device)[
@@ -137,7 +218,6 @@ class PositionalEncoding(nn.Module):
         values = values.permute([2, 0, 1]).unsqueeze(
             0
         )  # shape (1, num_heads, query_length, key_length)
-        print(values, values.shape)
         return values
 
 
@@ -146,20 +226,16 @@ class Transformer_byt5(nn.Module):
         super().__init__()
 
         CONFIG_T5 = Config_byt5(**config_)
-        # Linear == Embedding? https://discuss.pytorch.org/t/how-does-nn-embedding-work/88518/9
-        # self.input_embedding = nn.Linear(config.vocab_size, config.d_model, bias = False)
         self.input_embedding = nn.Embedding(
             CONFIG_T5.vocab_size, CONFIG_T5.d_model)
-        self.input_positional_encoding = PositionalEncoding()
         self.encoder = nn.ModuleList(
-            [EncoderLayer() for i in range(CONFIG_T5.num_layers)]
+            [EncoderLayer(i) for i in range(CONFIG_T5.num_layers)]
         )
 
         self.output_embedding = nn.Embedding(
             CONFIG_T5.vocab_size, CONFIG_T5.d_model)
-        self.output_positional_encoding = PositionalEncoding()
         self.decoder = nn.ModuleList(
-            [DecoderLayer() for i in range(CONFIG_T5.num_decoder_layers)]
+            [DecoderLayer(i) for i in range(CONFIG_T5.num_decoder_layers)]
         )
 
         self.linear = nn.Linear(
