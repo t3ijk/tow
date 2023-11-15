@@ -45,17 +45,24 @@ class MultiHeadAttention(nn.Module):
         if self.need_add_position_encoding:
             self.input_positional_encoding = PositionalEncoding()
 
-    def forward(self, hidden_states):
-        batch = hidden_states.shape[0]
-        sequence_length = hidden_states.shape[1]
+    def forward(self, kv_sequences, q_sequences=None):
+        batch = kv_sequences.shape[0]
+        sequence_length = kv_sequences.shape[1]
 
         # hidden_states, (batch, sequence_length, d_model)
         # 1. map hidden_states to q_heads, -> (batch, sequence_length, num_heads * d_kv)
         # 2. split q_heads to q_head, -> (batch, sequence_length, num_heads, d_kv)
         # 3. permute -> (batch, num_heads, sequence_length, d_kv)
-        self.q = self.WQ(hidden_states).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
-        self.k = self.WK(hidden_states).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
-        self.v = self.WV(hidden_states).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        if q_sequences == None:
+           # self attention 
+           q_sequences = kv_sequences
+        else:
+           # cross attention 
+           pass   
+
+        self.q = self.WQ(q_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        self.k = self.WK(kv_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        self.v = self.WV(kv_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
 
         # dot product
         logits = torch.matmul(
@@ -74,13 +81,10 @@ class MultiHeadAttention(nn.Module):
         attention_weights = nn.functional.softmax(logits.float(), dim=-1).type_as(
             logits
         )
-
         # new values for the queries, (batch, num_heads, query_length, d_kv)
         v_output = torch.matmul(attention_weights, self.v)
-
         # concat heads, (batch, query_length, num_heads*d_kv)
         v_output = v_output.transpose(2, 1).reshape([batch, sequence_length, CONFIG_T5.d_kv * CONFIG_T5.num_heads])
-
         # project back to d_model, (batch, query_length, d_model)
         v_output = self.linear(v_output)
 
@@ -99,7 +103,7 @@ class LayerNormal(nn.Module):
 
     def forward(self, hidden_states):
         # ref: transformers modeling_t5.py T5LayerNorm
-        # T5 Norm is only on last dimension https://stats.stackexchange.com/questions/620002/why-is-the-layer-normalization-same-with-the-instance-normalization-in-transform
+        # T5 Norm is only on the d_model dimension
         # T5 Norm only scales with var and doesn't shift with mean
         # T5 Norm no bias
         variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
@@ -181,9 +185,6 @@ class DecoderLayer(nn.Module):
         hidden_states = self.feed_forward(hidden_states)
         hidden_states = hidden_states + residual
         return hidden_states
-        
-
-
 
 class PositionalEncoding(nn.Module):
     def __init__(self):
