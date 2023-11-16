@@ -1,6 +1,6 @@
 
-from model_byt5.tokenizer import Tokenizer_byt5
-from model_byt5.model import Transformer_byt5
+from src.model_byt5.tokenizer import Tokenizer_byt5
+from src.model_byt5.model import Transformer_byt5
 import torch
 import json
 def test_tokenizer(input):
@@ -47,5 +47,21 @@ def test_model():
     out_infos = model(input_ids, labels)
     print(out_infos)
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+    torch.save(model.state_dict(), './test_models/byt5-small/pytorch_model_my.bin')
 
-test_model()
+# test_model()
+
+
+def test_model_weights():
+    state_dict = torch.load('./test_models/byt5-small/pytorch_model_my.bin')
+    # print(state_dict)
+
+    dict_model = dict()
+
+    for name, tensor_ in state_dict.items():
+        dict_model[name] = f"shape.{tensor_.shape}"
+
+    with open('test_dict_model.json', "w") as f:
+        json.dump(dict_model, f) 
+
+test_model_weights()    

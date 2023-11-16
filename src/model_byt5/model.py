@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from dataclasses import dataclass
-from model_byt5.utils import _relative_position_bucket
+from src.model_byt5.utils import _relative_position_bucket
 import math
 
 @dataclass
@@ -193,7 +193,7 @@ class DecoderLayer(nn.Module):
     def __init__(self, layer_index):
         super().__init__()
         self.normal1 = LayerNormal()
-        self.masked_multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
+        self.multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
         self.normal2 = LayerNormal()
         # encoder-decoder attention 
         self.multi_head_attention = MultiHeadAttention()
@@ -221,7 +221,7 @@ class DecoderLayer(nn.Module):
         
         hidden_states = self.normal1(hidden_states)
         residual = self.dropout1(hidden_states)
-        hidden_states = self.masked_multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
+        hidden_states = self.multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal2(hidden_states)
         residual = self.dropout2(hidden_states)
