@@ -1,7 +1,7 @@
 
 from model_byt5.tokenizer import Tokenizer_byt5
 from model_byt5.model import Transformer_byt5
-
+import torch
 import json
 def test_tokenizer(input):
     tk = Tokenizer_byt5()
@@ -28,19 +28,24 @@ def test_tokenizer(input):
     with open('tokenizer_config.json', 'w') as f:
         f.write(json.dumps(tk.get_config(), indent=4))
 
-test_tokenizer('qwew<pad>qeqwewqe</s>qwewqeqw<unk>ewqe')
-test_tokenizer('hello world!')
-test_tokenizer('你好世界！')
-test_tokenizer('你好世界！hello world! \n1 \t !@#$%^&* <<<<extra_id_119>123456')
-test_tokenizer('Life is like a box of chocolates.')
+def tokenizer_tests():
+    test_tokenizer('qwew<pad>qeqwewqe</s>qwewqeqw<unk>ewqe')
+    test_tokenizer('hello world!')
+    test_tokenizer('你好世界！')
+    test_tokenizer('你好世界！hello world! \n1 \t !@#$%^&* <<<<extra_id_119>123456')
+    test_tokenizer('Life is like a box of chocolates.')
 
+# tokenizer_tests()
 
 def test_model():
     print('--------------------------------')
     model = Transformer_byt5()
+   
     print(model)
-
-
-
+    input_ids = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
+    labels = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
+    out_infos = model(input_ids, labels)
+    print(out_infos)
+    print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
 test_model()
