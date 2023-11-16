@@ -193,7 +193,7 @@ class DecoderLayer(nn.Module):
     def __init__(self, layer_index):
         super().__init__()
         self.normal1 = LayerNormal()
-        self.multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
+        self.mask_multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
         self.normal2 = LayerNormal()
         # encoder-decoder attention 
         self.multi_head_attention = MultiHeadAttention()
@@ -221,7 +221,7 @@ class DecoderLayer(nn.Module):
         
         hidden_states = self.normal1(hidden_states)
         residual = self.dropout1(hidden_states)
-        hidden_states = self.multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
+        hidden_states = self.mask_multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal2(hidden_states)
         residual = self.dropout2(hidden_states)
@@ -270,7 +270,6 @@ class PositionalEncoding(nn.Module):
             0
         )  # shape (1, num_heads, query_length, key_length)
         return values
-
 
 class Transformer_byt5(nn.Module):
     def __init__(self, config_={}):
