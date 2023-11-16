@@ -127,14 +127,14 @@ class FeedForward(nn.Module):
         self.wi_0 = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
         self.wi_1 = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
         self.wo = nn.Linear(CONFIG_T5.d_ff, CONFIG_T5.d_model, bias=False)
-        # self.dropout = nn.Dropout(config.dropout_rate)
+        self.dropout = nn.Dropout(CONFIG_T5.dropout_rate)
         self.act = nn.GELU()
 
     def forward(self, hidden_states):
         hidden_gelu = self.act(self.wi_0(hidden_states))
         hidden_linear = self.wi_1(hidden_states)
         hidden_states = hidden_gelu * hidden_linear
-        # hidden_states = self.dropout(hidden_states)
+        hidden_states = self.dropout(hidden_states)
         hidden_states = self.wo(hidden_states)
         return hidden_states
     
@@ -157,16 +157,36 @@ class EncoderLayer(nn.Module):
         self.normal2 = LayerNormal()
         self.feed_forward = FeedForward()
 
+        self.need_input_stack_dropout = False
+        self.need_output_stack_dropout = False
+        if layer_index == 0:
+            self.need_input_stack_dropout = True
+            self.input_stack_dropout = nn.Dropout(CONFIG_T5.dropout_rate)
+        
+        if layer_index == CONFIG_T5.num_layers:
+            self.need_output_stack_dropout = True
+            self.output_stack_dropout = nn.Dropout(CONFIG_T5.dropout_rate) 
+        self.dropout1 = nn.Dropout(CONFIG_T5.dropout_rate)
+        self.dropout2 = nn.Dropout(CONFIG_T5.dropout_rate)
+        
+
     def forward(self, hidden_states):
         # main and residual hidden_states
+        if self.need_input_stack_dropout:
+            hidden_states = self.input_stack_dropout(hidden_states)
+        
         hidden_states = self.normal1(hidden_states)
-        residual = hidden_states
+        residual = self.dropout1(hidden_states)
         hidden_states = self.multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal2(hidden_states)
-        residual = hidden_states
+        residual = self.dropout2(hidden_states)
         hidden_states = self.feed_forward(hidden_states)
         hidden_states = hidden_states + residual
+
+        if self.need_output_stack_dropout:
+            hidden_states = self.output_stack_dropout(hidden_states)
+       
         return hidden_states
     
 class DecoderLayer(nn.Module):
@@ -179,21 +199,41 @@ class DecoderLayer(nn.Module):
         self.multi_head_attention = MultiHeadAttention()
         self.normal3 = LayerNormal()
         self.feed_forward = FeedForward()
+    
+        self.need_input_stack_dropout = False
+        self.need_output_stack_dropout = False
+        if layer_index == 0:
+            self.need_input_stack_dropout = True
+            self.input_stack_dropout = nn.Dropout(CONFIG_T5.dropout_rate)
+        
+        if layer_index == CONFIG_T5.num_decoder_layers:
+            self.need_output_stack_dropout = True
+            self.output_stack_dropout = nn.Dropout(CONFIG_T5.dropout_rate)
+        
+        self.dropout1 = nn.Dropout(CONFIG_T5.dropout_rate)
+        self.dropout2 = nn.Dropout(CONFIG_T5.dropout_rate)
+        self.dropout3 = nn.Dropout(CONFIG_T5.dropout_rate)
 
     def forward(self, hidden_states, encoder_outs):
         # main and residual hidden_states
+        if self.need_input_stack_dropout:
+            hidden_states = self.input_stack_dropout(hidden_states)
+        
         hidden_states = self.normal1(hidden_states)
-        residual = hidden_states
+        residual = self.dropout1(hidden_states)
         hidden_states = self.masked_multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal2(hidden_states)
-        residual = hidden_states
+        residual = self.dropout2(hidden_states)
         hidden_states = self.multi_head_attention(kv_sequences=encoder_outs, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal3(hidden_states)
-        residual = hidden_states
+        residual = self.dropout3(hidden_states)
         hidden_states = self.feed_forward(hidden_states)
         hidden_states = hidden_states + residual
+        
+        if self.need_output_stack_dropout:
+            hidden_states = self.output_stack_dropout(hidden_states)
         return hidden_states
 
 class PositionalEncoding(nn.Module):
