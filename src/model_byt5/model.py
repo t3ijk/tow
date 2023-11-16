@@ -108,17 +108,36 @@ class LayerNormal(nn.Module):
         return self.weight * hidden_states
 
 class FeedForward(nn.Module):
+    # ReLU
+
+    # def __init__(self):
+    #     super().__init__()
+    #     self.wi = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
+    #     self.wo = nn.Linear(CONFIG_T5.d_ff, CONFIG_T5.d_model, bias=False)
+    #     self.act = nn.ReLU()
+    # def forward(self, hidden_states):
+    #     hidden_states = self.wi(hidden_states)
+    #     hidden_states = self.act(hidden_states)
+    #     hidden_states = self.wo(hidden_states)
+    #     return hidden_states
+
+    # gated GeLU, ref: hf transformers   
     def __init__(self):
         super().__init__()
-        self.wi = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
+        self.wi_0 = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
+        self.wi_1 = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
         self.wo = nn.Linear(CONFIG_T5.d_ff, CONFIG_T5.d_model, bias=False)
-        self.act = nn.ReLU()
+        # self.dropout = nn.Dropout(config.dropout_rate)
+        self.act = nn.GELU()
+
     def forward(self, hidden_states):
-        hidden_states = self.wi(hidden_states)
-        hidden_states = self.act(hidden_states)
+        hidden_gelu = self.act(self.wi_0(hidden_states))
+        hidden_linear = self.wi_1(hidden_states)
+        hidden_states = hidden_gelu * hidden_linear
+        # hidden_states = self.dropout(hidden_states)
         hidden_states = self.wo(hidden_states)
         return hidden_states
-
+    
 class EncoderLayer(nn.Module):
     def __init__(self, layer_index):
         """
@@ -218,29 +237,34 @@ class Transformer_byt5(nn.Module):
         super().__init__()
 
         CONFIG_T5 = Config_byt5(**config_)
-        self.input_embedding = nn.Embedding(
+        self.shared_embedding = nn.Embedding(
             CONFIG_T5.vocab_size, CONFIG_T5.d_model)
-        self.encoder = nn.ModuleList(
-            [EncoderLayer(i) for i in range(CONFIG_T5.num_layers)]
-        )
+        self.encoder = nn.ModuleList([EncoderLayer(i) for i in range(CONFIG_T5.num_layers)])
 
-        self.output_embedding = nn.Embedding(
-            CONFIG_T5.vocab_size, CONFIG_T5.d_model)
-        self.decoder = nn.ModuleList(
-            [DecoderLayer(i) for i in range(CONFIG_T5.num_decoder_layers)]
-        )
+        self.encoder_final_layer_norm = LayerNormal()
+
+        self.decoder = nn.ModuleList([DecoderLayer(i) for i in range(CONFIG_T5.num_decoder_layers)])
+
+        self.decoder_final_layer_norm = LayerNormal()
 
         self.linear = nn.Linear(
             CONFIG_T5.d_model, CONFIG_T5.vocab_size, bias=False)
+    
+ 
 
     def forward(self, inputs, labels):
-        encoder_hidden_states = self.input_embedding(inputs)
+        encoder_hidden_states = self.shared_embedding(inputs)
         for i, layer in enumerate(self.encoder):
             encoder_hidden_states = layer(encoder_hidden_states)
+        
+        encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
 
-        decoder_hidden_states = self.output_embedding(labels)
+        decoder_hidden_states = self.shared_embedding(labels)
         for i, layer in enumerate(self.decoder):
-            encoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
+            decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
+        
+        decoder_hidden_states = self.decoder_final_layer_norm(decoder_hidden_states)
+
         output_logits = self.linear(decoder_hidden_states)
 
         loss = None
