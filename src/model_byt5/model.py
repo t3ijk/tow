@@ -45,7 +45,7 @@ class MultiHeadAttention(nn.Module):
         if self.need_add_position_encoding:
             self.input_positional_encoding = PositionalEncoding()
 
-    def forward(self, kv_sequences, q_sequences=None):
+    def forward(self, kv_sequences, q_sequences):
         batch = kv_sequences.shape[0]
         sequence_length = kv_sequences.shape[1]
 
@@ -53,13 +53,6 @@ class MultiHeadAttention(nn.Module):
         # 1. map hidden_states to q_heads, -> (batch, sequence_length, num_heads * d_kv)
         # 2. split q_heads to q_head, -> (batch, sequence_length, num_heads, d_kv)
         # 3. permute -> (batch, num_heads, sequence_length, d_kv)
-        if q_sequences == None:
-           # self attention 
-           q_sequences = kv_sequences
-        else:
-           # cross attention 
-           pass   
-
         self.q = self.WQ(q_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
         self.k = self.WK(kv_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
         self.v = self.WV(kv_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
@@ -71,8 +64,8 @@ class MultiHeadAttention(nn.Module):
         
         # first layer need_add_position_encoding
         if self.need_add_position_encoding:
-            # (batch, num_heads, query_length, key_length) + (1, num_heads, query_length, key_length)
-            logits += self.input_positional_encoding(CONFIG_T5.d_kv, CONFIG_T5.d_kv)
+            # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
+            logits += self.input_positional_encoding(logits.shape[2], logits.shape[3])
 
         # scaled
         logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
@@ -89,8 +82,6 @@ class MultiHeadAttention(nn.Module):
         v_output = self.linear(v_output)
 
         return v_output
-
-CONFIG_T5.d_kv, CONFIG_T5.d_kv
 
 class LayerNormal(nn.Module):
     def __init__(self, hidden_size=CONFIG_T5.d_model, eps=CONFIG_T5.layer_norm_epsilon):
@@ -151,7 +142,7 @@ class EncoderLayer(nn.Module):
         # main and residual hidden_states
         hidden_states = self.normal1(hidden_states)
         residual = hidden_states
-        hidden_states = self.multi_head_attention(hidden_states)
+        hidden_states = self.multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal2(hidden_states)
         residual = hidden_states
@@ -170,15 +161,15 @@ class DecoderLayer(nn.Module):
         self.normal3 = LayerNormal()
         self.feed_forward = FeedForward()
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states, encoder_outs):
         # main and residual hidden_states
         hidden_states = self.normal1(hidden_states)
         residual = hidden_states
-        hidden_states = self.masked_multi_head_attention(hidden_states)
+        hidden_states = self.masked_multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal2(hidden_states)
         residual = hidden_states
-        hidden_states = self.multi_head_attention(hidden_states)
+        hidden_states = self.multi_head_attention(kv_sequences=encoder_outs, q_sequences=hidden_states)
         hidden_states = hidden_states + residual
         hidden_states = self.normal3(hidden_states)
         residual = hidden_states
@@ -241,4 +232,23 @@ class Transformer_byt5(nn.Module):
 
         self.linear = nn.Linear(
             CONFIG_T5.d_model, CONFIG_T5.vocab_size, bias=False)
-        self.softmax = nn.Softmax()
+
+    def forward(self, inputs, labels):
+        encoder_hidden_states = self.input_embedding(inputs)
+        for i, layer in enumerate(self.encoder):
+            encoder_hidden_states = layer(encoder_hidden_states)
+
+        decoder_hidden_states = self.output_embedding(labels)
+        for i, layer in enumerate(self.decoder):
+            encoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
+        output_logits = self.linear(decoder_hidden_states)
+
+        loss = None
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+            loss = loss_fct(output_logits.view(-1, output_logits.size(-1)), labels.view(-1))
+
+        return {
+            "output_logits": output_logits,
+            "loss": loss
+        }
