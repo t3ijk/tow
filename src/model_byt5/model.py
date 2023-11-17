@@ -35,6 +35,7 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         # https://arxiv.org/pdf/1706.03762.pdf
         # Linear weight together for all heads
+        self.stack_tag = 'encoder' # decoder
         self.WQ = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
         self.WK = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
         self.WV = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
@@ -46,6 +47,7 @@ class MultiHeadAttention(nn.Module):
             self.input_positional_encoding = PositionalEncoding()
 
     def forward(self, kv_sequences, q_sequences):
+        # print(MODEL_T5.encoder[0].multi_head_attention.input_positional_encoding)
         batch = kv_sequences.shape[0]
         sequence_length = kv_sequences.shape[1]
 
@@ -61,11 +63,15 @@ class MultiHeadAttention(nn.Module):
         logits = torch.matmul(
             self.q, self.k.transpose(3, 2)
         )
-        
+
+
+        pos_coding = MODEL_T5.encoder[0].multi_head_attention.input_positional_encoding
+        if self.stack_tag == 'decoder':
+            pos_coding = MODEL_T5.decoder[0].masked_multi_head_attention.input_positional_encoding
+
         # first layer need_add_position_encoding
-        if self.need_add_position_encoding:
-            # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
-            logits += self.input_positional_encoding(logits.shape[2], logits.shape[3])
+        # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
+        logits += pos_coding(logits.shape[2], logits.shape[3])
         
         # scaled ???
         # logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
@@ -210,9 +216,11 @@ class DecoderLayer(nn.Module):
         super().__init__()
         self.normal1 = LayerNormal()
         self.masked_multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
+        self.masked_multi_head_attention.stack_tag = 'decoder'
         self.normal2 = LayerNormal()
         # encoder-decoder attention 
         self.multi_head_attention = MultiHeadAttention()
+        self.multi_head_attention.stack_tag = 'decoder'
         self.normal3 = LayerNormal()
         self.feed_forward = FeedForward()
     
@@ -300,12 +308,17 @@ class Transformer_byt5(nn.Module):
         self.linear = nn.Linear(
             CONFIG_T5.d_model, CONFIG_T5.vocab_size, bias=False)
 
+        global MODEL_T5
+        MODEL_T5 = self
+        
     def forward(self, inputs, labels):
         encoder_hidden_states = self.shared_embedding(inputs)
         for i, layer in enumerate(self.encoder):
             encoder_hidden_states = layer(encoder_hidden_states)
         
         encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
+        print('encoder_hidden_states', encoder_hidden_states.shape,
+              torch.var_mean(encoder_hidden_states))
         decoder_hidden_states = self.shared_embedding(labels)
         for i, layer in enumerate(self.decoder):
             decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
