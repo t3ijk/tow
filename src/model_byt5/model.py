@@ -66,9 +66,9 @@ class MultiHeadAttention(nn.Module):
         if self.need_add_position_encoding:
             # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
             logits += self.input_positional_encoding(logits.shape[2], logits.shape[3])
-
-        # scaled
-        logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
+        
+        # scaled ???
+        # logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
 
         # (batch, num_heads, query_length, key_length)
         attention_weights = nn.functional.softmax(logits.float(), dim=-1).type_as(
@@ -80,7 +80,8 @@ class MultiHeadAttention(nn.Module):
         v_output = v_output.transpose(2, 1).reshape([batch, sequence_length, CONFIG_T5.d_kv * CONFIG_T5.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         v_output = self.linear(v_output)
-
+        print('v_output', v_output.shape,
+              torch.var_mean(v_output))
         return v_output
 
 class LayerNormal(nn.Module):
@@ -107,6 +108,11 @@ class LayerNormal(nn.Module):
         # (batch, query_length, d_model)
         return self.weight * hidden_states
 
+class NewGELUActivation(nn.Module):
+    # https://github.com/huggingface/transformers/blob/b074461ef0f54ce37c5239d30ee960ece28d11ec/src/transformers/activations.py#L49
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        return 0.5 * input * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (input + 0.044715 * torch.pow(input, 3.0))))
+
 class FeedForward(nn.Module):
     # ReLU
 
@@ -128,7 +134,7 @@ class FeedForward(nn.Module):
         self.wi_1 = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
         self.wo = nn.Linear(CONFIG_T5.d_ff, CONFIG_T5.d_model, bias=False)
         self.dropout = nn.Dropout(CONFIG_T5.dropout_rate)
-        self.act = nn.GELU()
+        self.act = NewGELUActivation()
 
     def forward(self, hidden_states):
         hidden_gelu = self.act(self.wi_0(hidden_states))
@@ -175,15 +181,25 @@ class EncoderLayer(nn.Module):
         if self.need_input_stack_dropout:
             hidden_states = self.input_stack_dropout(hidden_states)
         
-        hidden_states = self.normal1(hidden_states)
-        residual = self.dropout1(hidden_states)
-        hidden_states = self.multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
-        hidden_states = hidden_states + residual
-        hidden_states = self.normal2(hidden_states)
-        residual = self.dropout2(hidden_states)
-        hidden_states = self.feed_forward(hidden_states)
-        hidden_states = hidden_states + residual
+        # paper residual graph?
+        # hidden_states = self.normal1(hidden_states)
+        # residual = self.dropout1(hidden_states)
+        # hidden_states = self.multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
+        # hidden_states = hidden_states + residual
+        # hidden_states = self.normal2(hidden_states)
+        # residual = self.dropout2(hidden_states)
+        # hidden_states = self.feed_forward(hidden_states)
+        # hidden_states = hidden_states + residual
 
+        # hf
+        hidden_states_normalized = self.normal1(hidden_states)
+        attention_outs = self.multi_head_attention(
+            kv_sequences=hidden_states_normalized,
+            q_sequences=hidden_states_normalized)
+        hidden_states = hidden_states + self.dropout1(attention_outs)
+        hidden_states_normalized = self.normal2(hidden_states)
+        feed_forward_outs = self.feed_forward(hidden_states_normalized)
+        hidden_states = hidden_states + self.dropout2(feed_forward_outs)
         if self.need_output_stack_dropout:
             hidden_states = self.output_stack_dropout(hidden_states)
        
@@ -278,17 +294,11 @@ class Transformer_byt5(nn.Module):
         self.shared_embedding = nn.Embedding(
             CONFIG_T5.vocab_size, CONFIG_T5.d_model)
         self.encoder = nn.ModuleList([EncoderLayer(i) for i in range(CONFIG_T5.num_layers)])
-
         self.encoder_final_layer_norm = LayerNormal()
-
         self.decoder = nn.ModuleList([DecoderLayer(i) for i in range(CONFIG_T5.num_decoder_layers)])
-
         self.decoder_final_layer_norm = LayerNormal()
-
         self.linear = nn.Linear(
             CONFIG_T5.d_model, CONFIG_T5.vocab_size, bias=False)
-    
- 
 
     def forward(self, inputs, labels):
         encoder_hidden_states = self.shared_embedding(inputs)
@@ -296,13 +306,10 @@ class Transformer_byt5(nn.Module):
             encoder_hidden_states = layer(encoder_hidden_states)
         
         encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
-
         decoder_hidden_states = self.shared_embedding(labels)
         for i, layer in enumerate(self.decoder):
             decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
-        
         decoder_hidden_states = self.decoder_final_layer_norm(decoder_hidden_states)
-
         output_logits = self.linear(decoder_hidden_states)
 
         loss = None
