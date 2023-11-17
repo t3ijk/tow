@@ -1,8 +1,11 @@
 
 from src.model_byt5.tokenizer import Tokenizer_byt5
 from src.model_byt5.model import Transformer_byt5
+from convert import hf_model_weight_name_mapping
 import torch
 import json
+from collections import OrderedDict
+import time
 def test_tokenizer(input):
     tk = Tokenizer_byt5()
     print('--------------------------------')
@@ -51,17 +54,31 @@ def test_model():
 
 # test_model()
 
-
-def test_model_weights():
-    state_dict = torch.load('./test_models/byt5-small/pytorch_model_my.bin')
-    # print(state_dict)
-
-    dict_model = dict()
-
+def test_model_with_weights():
+    state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
+    state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
-        dict_model[name] = f"shape.{tensor_.shape}"
+        new_name = hf_model_weight_name_mapping(name)
+        if new_name:
+            state_dict_new[hf_model_weight_name_mapping(name)] = tensor_
+    model = Transformer_byt5()
+    model.load_state_dict(state_dict_new)
+    model = model.eval()
+    input_ids = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
+    labels = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
 
-    with open('test_dict_model.json', "w") as f:
-        json.dump(dict_model, f) 
 
-test_model_weights()    
+    # t0 = time.time()
+    # out_infos = model(input_ids, labels)
+    # t1 = time.time()
+    # print(out_infos['loss'], 'deltaT', t1 - t0)
+
+
+    t0 = time.time()
+    n = 1
+    for i in range(n):
+        out_infos = model(input_ids, labels=labels)
+    t1 = time.time()
+    print(out_infos['loss'], 'deltaT', (t1 - t0) / n)
+    
+test_model_with_weights()    
