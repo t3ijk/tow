@@ -46,7 +46,7 @@ def test_model():
    
     print(model)
     input_ids = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
-    labels = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
+    labels = torch.tensor([list("123".encode("utf-8"))]) + 3  # add 3 for special tokens
     out_infos = model(input_ids, labels)
     print(out_infos)
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
@@ -65,7 +65,7 @@ def test_model_with_weights():
     model.load_state_dict(state_dict_new)
     model = model.eval()
     input_ids = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
-    labels = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
+    labels = torch.tensor([list("123".encode("utf-8"))]) + 3  # add 3 for special tokens
 
 
     # t0 = time.time()

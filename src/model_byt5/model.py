@@ -46,24 +46,24 @@ class MultiHeadAttention(nn.Module):
         if self.need_add_position_encoding:
             self.input_positional_encoding = PositionalEncoding()
 
-    def forward(self, kv_sequences, q_sequences):
+    def forward(self, kv_sequences, q_sequences, mask=None):
         # print(MODEL_T5.encoder[0].multi_head_attention.input_positional_encoding)
         batch = kv_sequences.shape[0]
-        sequence_length = kv_sequences.shape[1]
+        kv_length = kv_sequences.shape[1]
+        q_length = q_sequences.shape[1]
 
         # hidden_states, (batch, sequence_length, d_model)
         # 1. map hidden_states to q_heads, -> (batch, sequence_length, num_heads * d_kv)
         # 2. split q_heads to q_head, -> (batch, sequence_length, num_heads, d_kv)
         # 3. permute -> (batch, num_heads, sequence_length, d_kv)
-        self.q = self.WQ(q_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
-        self.k = self.WK(kv_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
-        self.v = self.WV(kv_sequences).reshape([batch, sequence_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        self.q = self.WQ(q_sequences).reshape([batch, q_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        self.k = self.WK(kv_sequences).reshape([batch, kv_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
+        self.v = self.WV(kv_sequences).reshape([batch, kv_length, CONFIG_T5.num_heads, CONFIG_T5.d_kv]).transpose(1, 2)
 
         # dot product
         logits = torch.matmul(
             self.q, self.k.transpose(3, 2)
         )
-
 
         pos_coding = MODEL_T5.encoder[0].multi_head_attention.input_positional_encoding
         if self.stack_tag == 'decoder':
@@ -71,7 +71,10 @@ class MultiHeadAttention(nn.Module):
 
         # first layer need_add_position_encoding
         # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
-        logits += pos_coding(logits.shape[2], logits.shape[3])
+        logits += pos_coding(logits.shape[2], logits.shape[3], bidirectional=self.stack_tag == 'encoder')
+
+        if mask is not None:
+                logits = logits + mask
         
         # scaled ???
         # logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
@@ -83,7 +86,7 @@ class MultiHeadAttention(nn.Module):
         # new values for the queries, (batch, num_heads, query_length, d_kv)
         v_output = torch.matmul(attention_weights, self.v)
         # concat heads, (batch, query_length, num_heads*d_kv)
-        v_output = v_output.transpose(2, 1).reshape([batch, sequence_length, CONFIG_T5.d_kv * CONFIG_T5.num_heads])
+        v_output = v_output.transpose(2, 1).reshape([batch, q_length, CONFIG_T5.d_kv * CONFIG_T5.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         v_output = self.linear(v_output)
         print('v_output', v_output.shape,
@@ -245,7 +248,7 @@ class DecoderLayer(nn.Module):
         
         hidden_states = self.normal1(hidden_states)
         residual = self.dropout1(hidden_states)
-        hidden_states = self.masked_multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
+        hidden_states = self.masked_multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states, mask=MODEL_T5.cur_mask)
         hidden_states = hidden_states + residual
         hidden_states = self.normal2(hidden_states)
         residual = self.dropout2(hidden_states)
@@ -310,8 +313,18 @@ class Transformer_byt5(nn.Module):
 
         global MODEL_T5
         MODEL_T5 = self
+        MODEL_T5.cur_mask = None
+
+    def get_attention_mask(self, seq_length):
+        seq_ids = torch.arange(seq_length)
+        causal_mask = seq_ids[None, :].repeat(1, seq_length, 1) <= seq_ids[None, :, None]
+        causal_mask = causal_mask.to(torch.float32).unsqueeze(0)
+        causal_mask = (1.0 - causal_mask) * torch.finfo(torch.float32).min
+        return causal_mask
         
     def forward(self, inputs, labels):
+        print(self.get_attention_mask(labels.shape[1]))
+        MODEL_T5.cur_mask = self.get_attention_mask(labels.shape[1])
         encoder_hidden_states = self.shared_embedding(inputs)
         for i, layer in enumerate(self.encoder):
             encoder_hidden_states = layer(encoder_hidden_states)
