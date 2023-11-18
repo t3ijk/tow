@@ -54,25 +54,24 @@ def test_model():
 
 # test_model()
 
-def test_model_with_weights():
+
+model = None
+
+def test_model_with_weights(str_in, str_out):
     state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
         new_name = hf_model_weight_name_mapping(name)
         if new_name:
             state_dict_new[hf_model_weight_name_mapping(name)] = tensor_
-    model = Transformer_byt5()
-    model.load_state_dict(state_dict_new)
-    model = model.eval()
-    input_ids = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
-    labels = torch.tensor([list("123".encode("utf-8"))]) + 3  # add 3 for special tokens
+    global model        
 
-
-    # t0 = time.time()
-    # out_infos = model(input_ids, labels)
-    # t1 = time.time()
-    # print(out_infos['loss'], 'deltaT', t1 - t0)
-
+    if model is None:
+        model = Transformer_byt5()
+        model.load_state_dict(state_dict_new)
+        model = model.eval()
+    input_ids = torch.tensor([list(str_in.encode("utf-8"))]) + 3  # add 3 for special tokens
+    labels = torch.tensor([list(str_out.encode("utf-8"))]) + 3  # add 3 for special tokens
 
     t0 = time.time()
     n = 1
@@ -80,5 +79,28 @@ def test_model_with_weights():
         out_infos = model(input_ids, labels=labels)
     t1 = time.time()
     print(out_infos['loss'], 'deltaT', (t1 - t0) / n)
-    
-test_model_with_weights()    
+
+
+
+def test_model_1():
+
+    cases = ["123", "abc"], ["hello world", '你好世界']
+    for it in [*cases, *cases, *cases, *cases, *cases, *cases, ]:
+        # tensor(11.4794, grad_fn=<NllLossBackward0>) deltaT 0.19362878799438477
+        # tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.3374292850494385
+        test_model_with_weights(it[0], it[1]) 
+test_model_1()
+
+
+# input_ids = torch.tensor([[100, 258, 104]])  # test mask token [258]
+# labels = torch.tensor([[258, 101, 102, 103]])
+
+
+# input_ids = torch.tensor([[100, 100, 100, 100, 258, 100]])  # test very small loss
+# labels = torch.tensor([[258, 100]])
+
+
+# t0 = time.time()
+# out_infos = model(input_ids, labels)
+# t1 = time.time()
+# print(out_infos['loss'], 'deltaT', t1 - t0)
