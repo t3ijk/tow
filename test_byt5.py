@@ -57,7 +57,7 @@ def test_model():
 
 model = None
 
-def test_model_with_weights(str_in, str_out):
+def test_model_with_weights(input_ids, labels):
     state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
@@ -70,8 +70,8 @@ def test_model_with_weights(str_in, str_out):
         model = Transformer_byt5()
         model.load_state_dict(state_dict_new)
         model = model.eval()
-    input_ids = torch.tensor([list(str_in.encode("utf-8"))]) + 3  # add 3 for special tokens
-    labels = torch.tensor([list(str_out.encode("utf-8"))]) + 3  # add 3 for special tokens
+    # input_ids = torch.tensor([list(str_in.encode("utf-8"))]) + 3  # add 3 for special tokens
+    # labels = torch.tensor([list(str_out.encode("utf-8"))]) + 3  # add 3 for special tokens
 
     t0 = time.time()
     n = 1
@@ -83,12 +83,23 @@ def test_model_with_weights(str_in, str_out):
 
 
 def test_model_1():
+    inputs = ["12311111111", "hello world"]
+    outputs = ["abc111111111", '你好世界']
+    batches = [[inputs, outputs]]
 
-    cases = ["123", "abc"], ["hello world", '你好世界']
-    for it in [*cases, *cases, *cases, *cases, *cases, *cases, ]:
-        # tensor(11.4794, grad_fn=<NllLossBackward0>) deltaT 0.19362878799438477
-        # tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.3374292850494385
-        test_model_with_weights(it[0], it[1]) 
+    for it in batches:
+        input_ids = []
+        for x in it[0]:
+            input_ids.append([y + 3 for y in x.encode("utf-8")])
+
+        label_ids = []
+        for x in it[1]:
+            label_ids.append([y + 3 for y in x.encode("utf-8")])  
+
+        input_ids = torch.tensor(input_ids)
+        label_ids = torch.tensor(label_ids)
+        
+        test_model_with_weights(input_ids, label_ids) 
 test_model_1()
 
 
