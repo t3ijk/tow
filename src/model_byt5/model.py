@@ -4,6 +4,7 @@ from torch.nn import functional as F
 from dataclasses import dataclass
 from src.model_byt5.utils import _relative_position_bucket
 import math
+from enum import Enum
 
 @dataclass
 class Config_byt5:
@@ -30,12 +31,16 @@ class Config_byt5:
 
 CONFIG_T5: Config_byt5 = Config_byt5()
 
+class AttentionType(Enum):
+    ENCODER_ATTENTION = 'encoder_multi_header_attention'
+    DECODER_MASKED_ATTENTION = 'decoder_masked_attention'
+    DECODER_CROSS_ATTENTION = 'decoder_cross_attention'
+
 class MultiHeadAttention(nn.Module):
-    def __init__(self, need_add_position_encoding=False):
+    def __init__(self, need_add_position_encoding=False, type=AttentionType.ENCODER_ATTENTION):
         super().__init__()
         # https://arxiv.org/pdf/1706.03762.pdf
         # Linear weight together for all heads
-        self.stack_tag = 'encoder' # decoder
         self.WQ = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
         self.WK = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
         self.WV = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
@@ -46,8 +51,9 @@ class MultiHeadAttention(nn.Module):
         if self.need_add_position_encoding:
             self.input_positional_encoding = PositionalEncoding()
 
+        self.attentionType = type  
+
     def forward(self, kv_sequences, q_sequences, mask=None):
-        # print(MODEL_T5.encoder[0].multi_head_attention.input_positional_encoding)
         batch = kv_sequences.shape[0]
         kv_length = kv_sequences.shape[1]
         q_length = q_sequences.shape[1]
@@ -64,18 +70,25 @@ class MultiHeadAttention(nn.Module):
         logits = torch.matmul(
             self.q, self.k.transpose(3, 2)
         )
+        pos_bias = None
+        if self.attentionType == AttentionType.ENCODER_ATTENTION:
+            # AttentionType.ENCODER_ATTENTION 
+            pos_coding = MODEL_T5.encoder[0].multi_head_attention.input_positional_encoding
+            pos_bias = pos_coding(logits.shape[2], logits.shape[3], bidirectional=True)
 
-        pos_coding = MODEL_T5.encoder[0].multi_head_attention.input_positional_encoding
-        if self.stack_tag == 'decoder':
+        if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+            # index 0, AttentionType.DECODER_MASKED_ATTENTION 
             pos_coding = MODEL_T5.decoder[0].masked_multi_head_attention.input_positional_encoding
-
+            pos_bias = pos_coding(logits.shape[2], logits.shape[3], bidirectional=False)
+        
         # first layer need_add_position_encoding
         # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
-        logits += pos_coding(logits.shape[2], logits.shape[3], bidirectional=self.stack_tag == 'encoder')
+
+        if pos_bias is not None:
+            logits += pos_bias
 
         if mask is not None:
                 logits = logits + mask
-        
         # scaled ???
         # logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
 
@@ -168,7 +181,7 @@ class EncoderLayer(nn.Module):
         """
         super().__init__()
         self.normal1 = LayerNormal()
-        self.multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
+        self.multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0), type=AttentionType.ENCODER_ATTENTION)
         self.normal2 = LayerNormal()
         self.feed_forward = FeedForward()
 
@@ -218,12 +231,10 @@ class DecoderLayer(nn.Module):
     def __init__(self, layer_index):
         super().__init__()
         self.normal1 = LayerNormal()
-        self.masked_multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0))
-        self.masked_multi_head_attention.stack_tag = 'decoder'
+        self.masked_multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0), type=AttentionType.DECODER_MASKED_ATTENTION)
         self.normal2 = LayerNormal()
         # encoder-decoder attention 
-        self.multi_head_attention = MultiHeadAttention()
-        self.multi_head_attention.stack_tag = 'decoder'
+        self.multi_head_attention = MultiHeadAttention(type=AttentionType.DECODER_CROSS_ATTENTION)
         self.normal3 = LayerNormal()
         self.feed_forward = FeedForward()
     
@@ -246,18 +257,15 @@ class DecoderLayer(nn.Module):
         if self.need_input_stack_dropout:
             hidden_states = self.input_stack_dropout(hidden_states)
         
-        hidden_states = self.normal1(hidden_states)
-        residual = self.dropout1(hidden_states)
-        hidden_states = self.masked_multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states, mask=MODEL_T5.cur_mask)
-        hidden_states = hidden_states + residual
-        hidden_states = self.normal2(hidden_states)
-        residual = self.dropout2(hidden_states)
-        hidden_states = self.multi_head_attention(kv_sequences=encoder_outs, q_sequences=hidden_states)
-        hidden_states = hidden_states + residual
-        hidden_states = self.normal3(hidden_states)
-        residual = self.dropout3(hidden_states)
-        hidden_states = self.feed_forward(hidden_states)
-        hidden_states = hidden_states + residual
+        hidden_states_normalized = self.normal1(hidden_states)
+        attention_outs = self.masked_multi_head_attention(kv_sequences=hidden_states_normalized, q_sequences=hidden_states_normalized, mask=MODEL_T5.cur_mask)
+        hidden_states = hidden_states + self.dropout1(attention_outs)
+        hidden_states_normalized = self.normal2(hidden_states)
+        attention_outs = self.multi_head_attention(kv_sequences=encoder_outs, q_sequences=hidden_states_normalized)
+        hidden_states = hidden_states + self.dropout2(attention_outs)
+        hidden_states_normalized = self.normal3(hidden_states)
+        feed_forward_outs = self.feed_forward(hidden_states_normalized)
+        hidden_states = hidden_states + self.dropout3(feed_forward_outs)
         
         if self.need_output_stack_dropout:
             hidden_states = self.output_stack_dropout(hidden_states)
@@ -323,16 +331,17 @@ class Transformer_byt5(nn.Module):
         return causal_mask
         
     def forward(self, inputs, labels):
-        print(self.get_attention_mask(labels.shape[1]))
         MODEL_T5.cur_mask = self.get_attention_mask(labels.shape[1])
         encoder_hidden_states = self.shared_embedding(inputs)
         for i, layer in enumerate(self.encoder):
             encoder_hidden_states = layer(encoder_hidden_states)
         
         encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
-        print('encoder_hidden_states', encoder_hidden_states.shape,
-              torch.var_mean(encoder_hidden_states))
-        decoder_hidden_states = self.shared_embedding(labels)
+
+        shifted_input_ids = labels.new_zeros(labels.shape)
+        shifted_input_ids[..., 1:] = labels[..., :-1].clone()
+        shifted_input_ids[..., 0] = 0
+        decoder_hidden_states = self.shared_embedding(shifted_input_ids)
         for i, layer in enumerate(self.decoder):
             decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
         decoder_hidden_states = self.decoder_final_layer_norm(decoder_hidden_states)
@@ -340,8 +349,9 @@ class Transformer_byt5(nn.Module):
 
         loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
-            loss = loss_fct(output_logits.view(-1, output_logits.size(-1)), labels.view(-1))
+            predicts = output_logits.view(-1, output_logits.size(-1))
+            labels = labels.view(-1)
+            loss = nn.CrossEntropyLoss(ignore_index=-100)(predicts, labels)
 
         return {
             "output_logits": output_logits,
