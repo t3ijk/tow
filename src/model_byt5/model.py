@@ -89,8 +89,11 @@ class MultiHeadAttention(nn.Module):
 
         if mask is not None:
                 logits = logits + mask
-        # scaled ???
+        # ??? no scaled, according to the original paper?
         # logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
+
+        # print('logits', logits.shape,
+        #       torch.var_mean(logits))
 
         # (batch, num_heads, query_length, key_length)
         attention_weights = nn.functional.softmax(logits.float(), dim=-1).type_as(
@@ -102,8 +105,8 @@ class MultiHeadAttention(nn.Module):
         v_output = v_output.transpose(2, 1).reshape([batch, q_length, CONFIG_T5.d_kv * CONFIG_T5.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         v_output = self.linear(v_output)
-        print('v_output', v_output.shape,
-              torch.var_mean(v_output))
+        # print('v_output', v_output.shape,
+        #       torch.var_mean(v_output))
         return v_output
 
 class LayerNormal(nn.Module):
@@ -257,6 +260,7 @@ class DecoderLayer(nn.Module):
         if self.need_input_stack_dropout:
             hidden_states = self.input_stack_dropout(hidden_states)
         
+        # ??? different skip-residual-dropout graph to the t5 paper?
         hidden_states_normalized = self.normal1(hidden_states)
         attention_outs = self.masked_multi_head_attention(kv_sequences=hidden_states_normalized, q_sequences=hidden_states_normalized, mask=MODEL_T5.cur_mask)
         hidden_states = hidden_states + self.dropout1(attention_outs)
@@ -338,6 +342,8 @@ class Transformer_byt5(nn.Module):
         
         encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
 
+        # encoder inputs starts with [0] a initial token. labels/outputs need shift right
+        # like: [0, l, a, b, e, l, s] => [l, a, b, e, l, s]  
         shifted_input_ids = labels.new_zeros(labels.shape)
         shifted_input_ids[..., 1:] = labels[..., :-1].clone()
         shifted_input_ids[..., 0] = 0
