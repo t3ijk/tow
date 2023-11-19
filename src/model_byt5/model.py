@@ -329,9 +329,6 @@ class Transformer_byt5(nn.Module):
         MODEL_T5 = self
         MODEL_T5.mask_for_masked_attention = None
 
-        self.cached_decoder_final_outputs = None
-        self.cached_encoder_final_hidden_states = None
-
     def get_attention_mask(self, seq_length):
         seq_ids = torch.arange(seq_length)
         causal_mask = seq_ids[None, :].repeat(1, seq_length, 1) <= seq_ids[None, :, None]
@@ -339,28 +336,23 @@ class Transformer_byt5(nn.Module):
         causal_mask = (1.0 - causal_mask) * torch.finfo(torch.float32).min
         return causal_mask
         
-    def generate(self, inputs, max_length):
-        return self.forward(inputs)
-        
-    def forward(self, inputs, labels=None, last_outputs=None):
-        # encode
-        if self.cached_encoder_final_hidden_states is None:
+    def encode(self, inputs):
             encoder_hidden_states = self.shared_embedding(inputs)
             for i, layer in enumerate(self.encoder):
                 encoder_hidden_states = layer(encoder_hidden_states)
             
             encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
-            self.cached_encoder_final_hidden_states = encoder_hidden_states
-
+            return encoder_hidden_states
+    
+    def decode(self, encoder_hidden_states, labels=None):
         # prepare inputs for decoder
-        last_outputs = self.cached_decoder_final_outputs
-        if last_outputs is None:
-            last_outputs = torch.zeros(inputs.shape[0], 0)
+        last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0) # (batch, )
         if labels is not None:
             last_outputs = labels[:, :-1]
-        
+
         # insert [0] and shift right
-        shifted_input_ids = last_outputs.new_zeros(last_outputs.shape[0], last_outputs.shape[1] + 1)
+        shifted_input_ids = torch.zeros ((last_outputs.shape[0], last_outputs.shape[1] + 1), 
+                                         dtype=torch.int32)
         shifted_input_ids[:, 1:] = last_outputs.clone()
         shifted_input_ids[:, 0] = 0            
 
@@ -368,17 +360,26 @@ class Transformer_byt5(nn.Module):
         MODEL_T5.mask_for_masked_attention = self.get_attention_mask(shifted_input_ids.shape[1])
         decoder_hidden_states = self.shared_embedding(shifted_input_ids)
         for i, layer in enumerate(self.decoder):
-            decoder_hidden_states = layer(decoder_hidden_states, self.cached_encoder_final_hidden_states)
+            decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
         decoder_hidden_states = self.decoder_final_layer_norm(decoder_hidden_states)
         output_logits = self.linear(decoder_hidden_states)
-
+        return output_logits
+        
+    def forward(self, inputs, labels=None):
+        # encode
+        encoder_hidden_states = self.encode(inputs)
+        # decode
+        output_logits = self.decode(encoder_hidden_states, labels) 
         # calculate loss
+        loss = None
         if labels is not None:
             predicts = output_logits.view(-1, output_logits.size(-1))
             labels = labels.view(-1)
             loss = nn.CrossEntropyLoss(ignore_index=-100)(predicts, labels)
-
         return {
             "output_logits": output_logits,
             "loss": loss
         }
+
+    def generate(self, inputs, max_length):
+        return self.forward(inputs)
