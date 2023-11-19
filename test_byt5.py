@@ -57,7 +57,7 @@ def test_model():
 
 model = None
 
-def test_model_with_weights(input_ids, labels):
+def test_model_forward(input_ids, labels):
     state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
@@ -95,21 +95,31 @@ def test_model_1():
             label_ids.append([y + 3 for y in x.encode("utf-8")])  
         input_ids = torch.tensor(input_ids)
         label_ids = torch.tensor(label_ids)
-        test_model_with_weights(input_ids, label_ids) 
+        test_model_forward(input_ids, label_ids) 
 
 # tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
-test_model_1()
+# test_model_1()
 
 
-# input_ids = torch.tensor([[100, 258, 104]])  # test mask token [258]
-# labels = torch.tensor([[258, 101, 102, 103]])
+def test_model_generate(input_ids):
+    state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
+    state_dict_new = OrderedDict()
+    for name, tensor_ in state_dict.items():
+        new_name = hf_model_weight_name_mapping(name)
+        if new_name:
+            state_dict_new[hf_model_weight_name_mapping(name)] = tensor_
+    global model        
 
+    if model is None:
+        model = Transformer_byt5()
+        model.load_state_dict(state_dict_new)
+        model = model.eval()
 
-# input_ids = torch.tensor([[100, 100, 100, 100, 258, 100]])  # test very small loss
-# labels = torch.tensor([[258, 100]])
+    t0 = time.time()
+    n = 1
+    for i in range(n):
+        out_infos = model.generate(input_ids, max_length=10)
+    t1 = time.time()
+    print(out_infos['output_logits'], 'deltaT', (t1 - t0) / n)
 
-
-# t0 = time.time()
-# out_infos = model(input_ids, labels)
-# t1 = time.time()
-# print(out_infos['loss'], 'deltaT', t1 - t0)
+test_model_generate(input_ids=torch.tensor([[107, 104, 111, 111, 114, 35, 122, 114, 117, 111, 103, 36, 1]]))
