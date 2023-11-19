@@ -83,23 +83,21 @@ def test_model_with_weights(input_ids, labels):
 
 
 def test_model_1():
-    inputs = ["12311111111", "hello world"]
-    outputs = ["abc111111111", '你好世界']
+    inputs = ["hello world"]
+    outputs = ['你好世界']
     batches = [[inputs, outputs]]
-
     for it in batches:
         input_ids = []
         for x in it[0]:
             input_ids.append([y + 3 for y in x.encode("utf-8")])
-
         label_ids = []
         for x in it[1]:
             label_ids.append([y + 3 for y in x.encode("utf-8")])  
-
         input_ids = torch.tensor(input_ids)
         label_ids = torch.tensor(label_ids)
-        
         test_model_with_weights(input_ids, label_ids) 
+
+# tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
 test_model_1()
 
 
