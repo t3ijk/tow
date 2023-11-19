@@ -382,4 +382,18 @@ class Transformer_byt5(nn.Module):
         }
 
     def generate(self, inputs, max_length):
-        return self.forward(inputs)
+        # encode
+        encoder_hidden_states = self.encode(inputs)
+        # decode
+        batch_size = encoder_hidden_states.shape[0]
+        yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32)
+        for i in range(max_length):
+            output_logits = self.decode(encoder_hidden_states) # (batch, 1, len_dict)
+            values, indices = output_logits[0].topk(1) # (batch, 1)
+            
+            # if torch.equal(gen_ids, torch.tensor([1])):
+            #     # eos token
+            #     break
+            yield_ids = torch.cat((yield_ids, indices), 1)
+        
+        return yield_ids
