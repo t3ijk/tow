@@ -70,6 +70,8 @@ class MultiHeadAttention(nn.Module):
         logits = torch.matmul(
             self.q, self.k.transpose(3, 2)
         )
+
+        # ??? cross attention no need pos_bias
         pos_bias = None
         if self.attentionType == AttentionType.ENCODER_ATTENTION:
             # AttentionType.ENCODER_ATTENTION 
@@ -79,7 +81,7 @@ class MultiHeadAttention(nn.Module):
         if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             # index 0, AttentionType.DECODER_MASKED_ATTENTION 
             pos_coding = MODEL_T5.decoder[0].masked_multi_head_attention.input_positional_encoding
-            pos_bias = pos_coding(logits.shape[2], logits.shape[3], bidirectional=False)
+            pos_bias = pos_coding(logits.shape[2], logits.shape[3], bidirectional=False)    
         
         # first layer need_add_position_encoding
         # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
@@ -262,7 +264,7 @@ class DecoderLayer(nn.Module):
         
         # ??? different skip-residual-dropout graph to the t5 paper?
         hidden_states_normalized = self.normal1(hidden_states)
-        attention_outs = self.masked_multi_head_attention(kv_sequences=hidden_states_normalized, q_sequences=hidden_states_normalized, mask=MODEL_T5.cur_mask)
+        attention_outs = self.masked_multi_head_attention(kv_sequences=hidden_states_normalized, q_sequences=hidden_states_normalized, mask=MODEL_T5.mask_for_masked_attention)
         hidden_states = hidden_states + self.dropout1(attention_outs)
         hidden_states_normalized = self.normal2(hidden_states)
         attention_outs = self.multi_head_attention(kv_sequences=encoder_outs, q_sequences=hidden_states_normalized)
@@ -325,7 +327,10 @@ class Transformer_byt5(nn.Module):
 
         global MODEL_T5
         MODEL_T5 = self
-        MODEL_T5.cur_mask = None
+        MODEL_T5.mask_for_masked_attention = None
+
+        self.cached_decoder_final_outputs = None
+        self.cached_encoder_final_hidden_states = None
 
     def get_attention_mask(self, seq_length):
         seq_ids = torch.arange(seq_length)
@@ -334,26 +339,40 @@ class Transformer_byt5(nn.Module):
         causal_mask = (1.0 - causal_mask) * torch.finfo(torch.float32).min
         return causal_mask
         
-    def forward(self, inputs, labels):
-        MODEL_T5.cur_mask = self.get_attention_mask(labels.shape[1])
-        encoder_hidden_states = self.shared_embedding(inputs)
-        for i, layer in enumerate(self.encoder):
-            encoder_hidden_states = layer(encoder_hidden_states)
+    # def generate(self, inputs, max_length):
+    #     self.last_outputs = torch.zeros(inputs.shape[0], 0)
         
-        encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
+    def forward(self, inputs, labels, last_outputs=None):
+        # encode
+        if self.cached_encoder_final_hidden_states is None:
+            encoder_hidden_states = self.shared_embedding(inputs)
+            for i, layer in enumerate(self.encoder):
+                encoder_hidden_states = layer(encoder_hidden_states)
+            
+            encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
+            self.cached_encoder_final_hidden_states = encoder_hidden_states
 
-        # encoder inputs starts with [0] a initial token. labels/outputs need shift right
-        # like: [0, l, a, b, e, l, s] => [l, a, b, e, l, s]  
-        shifted_input_ids = labels.new_zeros(labels.shape)
-        shifted_input_ids[..., 1:] = labels[..., :-1].clone()
-        shifted_input_ids[..., 0] = 0
+        # prepare inputs for decoder
+        last_outputs = self.cached_decoder_final_outputs
+        if last_outputs is None:
+            last_outputs = torch.zeros(inputs.shape[0], 0)
+        if labels is not None:
+            last_outputs = labels[:, :-1]
+        
+        # insert [0] and shift right
+        shifted_input_ids = labels.new_zeros(last_outputs.shape[0], last_outputs.shape[1] + 1)
+        shifted_input_ids[:, 1:] = last_outputs.clone()
+        shifted_input_ids[:, 0] = 0            
+
+        # decode
+        MODEL_T5.mask_for_masked_attention = self.get_attention_mask(labels.shape[1])
         decoder_hidden_states = self.shared_embedding(shifted_input_ids)
         for i, layer in enumerate(self.decoder):
-            decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
+            decoder_hidden_states = layer(decoder_hidden_states, self.cached_encoder_final_hidden_states)
         decoder_hidden_states = self.decoder_final_layer_norm(decoder_hidden_states)
         output_logits = self.linear(decoder_hidden_states)
 
-        loss = None
+        # calculate loss
         if labels is not None:
             predicts = output_logits.view(-1, output_logits.size(-1))
             labels = labels.view(-1)
