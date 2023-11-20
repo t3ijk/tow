@@ -71,7 +71,7 @@ class MultiHeadAttention(nn.Module):
             self.q, self.k.transpose(3, 2)
         )
 
-        # ??? cross attention no need pos_bias
+        # cross attention no need pos_bias ?
         pos_bias = None
         if self.attentionType == AttentionType.ENCODER_ATTENTION:
             # AttentionType.ENCODER_ATTENTION 
@@ -91,7 +91,7 @@ class MultiHeadAttention(nn.Module):
 
         if mask is not None:
                 logits = logits + mask
-        # ??? no scaled, according to the original paper?
+        # no scaled, according to the original paper ?
         # logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
 
         # print('logits', logits.shape,
@@ -141,19 +141,6 @@ class NewGELUActivation(nn.Module):
         return 0.5 * input * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (input + 0.044715 * torch.pow(input, 3.0))))
 
 class FeedForward(nn.Module):
-    # ReLU
-
-    # def __init__(self):
-    #     super().__init__()
-    #     self.wi = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.d_ff, bias=False)
-    #     self.wo = nn.Linear(CONFIG_T5.d_ff, CONFIG_T5.d_model, bias=False)
-    #     self.act = nn.ReLU()
-    # def forward(self, hidden_states):
-    #     hidden_states = self.wi(hidden_states)
-    #     hidden_states = self.act(hidden_states)
-    #     hidden_states = self.wo(hidden_states)
-    #     return hidden_states
-
     # gated GeLU, ref: hf transformers   
     def __init__(self):
         super().__init__()
@@ -207,17 +194,6 @@ class EncoderLayer(nn.Module):
         # main and residual hidden_states
         if self.need_input_stack_dropout:
             hidden_states = self.input_stack_dropout(hidden_states)
-        
-        # paper residual graph?
-        # hidden_states = self.normal1(hidden_states)
-        # residual = self.dropout1(hidden_states)
-        # hidden_states = self.multi_head_attention(kv_sequences=hidden_states, q_sequences=hidden_states)
-        # hidden_states = hidden_states + residual
-        # hidden_states = self.normal2(hidden_states)
-        # residual = self.dropout2(hidden_states)
-        # hidden_states = self.feed_forward(hidden_states)
-        # hidden_states = hidden_states + residual
-
         # hf
         hidden_states_normalized = self.normal1(hidden_states)
         attention_outs = self.multi_head_attention(
@@ -262,7 +238,7 @@ class DecoderLayer(nn.Module):
         if self.need_input_stack_dropout:
             hidden_states = self.input_stack_dropout(hidden_states)
         
-        # ??? different skip-residual-dropout graph to the t5 paper?
+        # different skip-residual-dropout graph to the t5 paper ?
         hidden_states_normalized = self.normal1(hidden_states)
         attention_outs = self.masked_multi_head_attention(kv_sequences=hidden_states_normalized, q_sequences=hidden_states_normalized, mask=MODEL_T5.mask_for_masked_attention)
         hidden_states = hidden_states + self.dropout1(attention_outs)
