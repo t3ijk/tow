@@ -386,15 +386,9 @@ class Transformer_byt5(nn.Module):
         # decode
         batch_size = encoder_hidden_states.shape[0]
         yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32)
-
         last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0)
         for i in range(max_length):
             output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs) # (batch, 1, len_dict)
-            values, indices = output_logits[0].topk(1) # (batch, 1)
-            
-            # if torch.equal(gen_ids, torch.tensor([1])):
-            #     # eos token
-            #     break
-            yield_ids = torch.cat((yield_ids, indices), 1)
-        
-        return yield_ids
+            values, indices = output_logits.topk(1)
+            last_outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
+        return last_outputs

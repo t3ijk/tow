@@ -20,6 +20,9 @@ class Tokenizer_byt5:
         # all_tokens excludes vocabulary_tokens
         self.special_tokens = list(filter(lambda token: token not in self.vocabulary_tokens, self.all_tokens))
 
+    def text2ids(self, text):
+        return self.tokens2ids(self.text2tokens(text))  
+
     def text2tokens(self, text):
         delimiters  = f"({'|'.join(self.special_tokens)})"
         
@@ -50,15 +53,18 @@ class Tokenizer_byt5:
         for token in tokens:
             if token in self.special_tokens:
                 if len(sub_array) > 0:
-                    array.append(bytearray([ord(c)  for c in sub_array]).decode("utf-8"))
+                    array.append(bytearray([ord(c)  for c in sub_array]).decode("utf-8", errors='ignore'))
                     sub_array = []
                 array.append(token)
             else:
                 sub_array.append(token)
         if len(sub_array) > 0:
-            array.append(bytearray([ord(c)  for c in sub_array]).decode("utf-8"))       
+            array.append(bytearray([ord(c)  for c in sub_array]).decode("utf-8", errors='ignore'))       
 
         return ''.join(array)
+    
+    def ids2text(self, ids):
+        return self.tokens2text(self.ids2tokens(ids))
 
     def text_clean_special_tokens(self, text):
         delimiters  = f"{'|'.join(self.special_tokens)}"

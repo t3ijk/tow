@@ -118,8 +118,15 @@ def test_model_generate(input_ids):
     t0 = time.time()
     n = 1
     for i in range(n):
-        out_infos = model.generate(input_ids, max_length=10)
-    t1 = time.time()
-    print(out_infos['output_logits'], 'deltaT', (t1 - t0) / n)
+        out_ids = model.generate(input_ids, max_length=10)
+        tk = Tokenizer_byt5()
+        # 
+        for ids in out_ids.tolist():
+            print(tk.ids2text(ids), ids)
 
-test_model_generate(input_ids=torch.tensor([[107, 104, 111, 111, 114, 35, 122, 114, 117, 111, 103, 36, 1]]))
+    t1 = time.time()
+    print(out_ids, 'deltaT', (t1 - t0) / n)
+
+tk = Tokenizer_byt5()
+test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world!')]))
+test_model_generate(input_ids=torch.tensor([tk.text2ids('你好世界!')]))
