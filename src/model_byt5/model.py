@@ -344,17 +344,16 @@ class Transformer_byt5(nn.Module):
             encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
             return encoder_hidden_states
     
-    def decode(self, encoder_hidden_states, labels=None):
+    def decode(self, encoder_hidden_states, labels=None, last_outputs=None):
         # prepare inputs for decoder
-        last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0) # (batch, )
+        if last_outputs is None:
+            last_outputs = last_outputs
         if labels is not None:
-            last_outputs = labels[:, :-1]
-
-        # insert [0] and shift right
+            last_outputs = labels[:, :-1] # Delete the last label, and the exactly one hopefully will be generated as "next token".
         shifted_input_ids = torch.zeros ((last_outputs.shape[0], last_outputs.shape[1] + 1), 
                                          dtype=torch.int32)
         shifted_input_ids[:, 1:] = last_outputs.clone()
-        shifted_input_ids[:, 0] = 0            
+        shifted_input_ids[:, 0] = 0
 
         # decode
         MODEL_T5.mask_for_masked_attention = self.get_attention_mask(shifted_input_ids.shape[1])
@@ -387,8 +386,10 @@ class Transformer_byt5(nn.Module):
         # decode
         batch_size = encoder_hidden_states.shape[0]
         yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32)
+
+        last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0)
         for i in range(max_length):
-            output_logits = self.decode(encoder_hidden_states) # (batch, 1, len_dict)
+            output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs) # (batch, 1, len_dict)
             values, indices = output_logits[0].topk(1) # (batch, 1)
             
             # if torch.equal(gen_ids, torch.tensor([1])):
