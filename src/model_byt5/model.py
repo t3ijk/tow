@@ -65,7 +65,7 @@ class MultiHeadAttention(nn.Module):
         self.k = self.WK(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
         self.v = self.WV(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
 
-        if self.cached_last_logits is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+        if self.cached_last_logits is not None and self.attentionType != AttentionType.ENCODER_ATTENTION:
             # mat @ vector
             q = self.q
             k = self.k
@@ -94,7 +94,7 @@ class MultiHeadAttention(nn.Module):
 
             # if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             #     print('logits', self.attentionType, logits, logits.shape, self.layer_index)
-        if CUR_MODEL.use_cache and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+        if CUR_MODEL.use_cache and self.attentionType != AttentionType.ENCODER_ATTENTION:
             self.cached_last_logits = logits.clone()
 
         # cross attention no need pos_bias ?
