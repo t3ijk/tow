@@ -138,6 +138,8 @@ class MultiHeadAttention(nn.Module):
         v_output = v_output.transpose(2, 1).reshape([batch, q_length, CUR_CONFIG.d_kv * CUR_CONFIG.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         v_output = self.linear(v_output)
+        print('a_out', torch.var_mean(v_output), v_output.shape)
+
         return v_output
 
 class LayerNormal(nn.Module):
