@@ -75,15 +75,25 @@ class MultiHeadAttention(nn.Module):
                 q_last, k.transpose(3, 2)
             )
 
-            logits_column = torch.matmul(
-                q, k_last.transpose(3, 2)
-            )
+            if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+                # only fo self attention
+                logits_column = torch.matmul(
+                    q, k_last.transpose(3, 2)
+                )
             a = self.cached_last_logits
-            zeros = torch.zeros([a.shape[0], a.shape[1], a.shape[3], 1])
-            a = torch.cat((a, zeros), -1) # expand column + 1
+
+            if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+                # only fo self attention
+                zeros = torch.zeros([a.shape[0], a.shape[1], a.shape[3], 1])
+                a = torch.cat((a, zeros), -1) # expand column + 1
+
             zeros = torch.zeros([a.shape[0], a.shape[1], 1, a.shape[3]])
             a = torch.cat((a, zeros), -2) # expand row + 1
-            a[:,:,:,-1:] = logits_column # set tail column
+
+            if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+                # only fo self attention
+                a[:,:,:,-1:] = logits_column # set tail column
+    
             a[:,:,-1:,:] = logits_row # set tail row
             logits = a
         else:
