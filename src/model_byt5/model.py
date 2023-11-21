@@ -39,7 +39,6 @@ class AttentionType(Enum):
 class MultiHeadAttention(nn.Module):
     def __init__(self, need_add_position_encoding=False, type=AttentionType.ENCODER_ATTENTION):
         super().__init__()
-        # https://arxiv.org/pdf/1706.03762.pdf
         # Linear weight together for all heads
         self.WQ = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
         self.WK = nn.Linear(CONFIG_T5.d_model, CONFIG_T5.num_heads * CONFIG_T5.d_kv, bias=False)
@@ -85,7 +84,6 @@ class MultiHeadAttention(nn.Module):
         
         # first layer need_add_position_encoding
         # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
-
         if pos_bias is not None:
             logits += pos_bias
 
@@ -93,10 +91,6 @@ class MultiHeadAttention(nn.Module):
                 logits = logits + mask
         # no scaled, according to the original paper ?
         # logits = logits / (1.0 / math.sqrt(CONFIG_T5.d_kv))
-
-        # print('logits', logits.shape,
-        #       torch.var_mean(logits))
-
         # (batch, num_heads, query_length, key_length)
         attention_weights = nn.functional.softmax(logits.float(), dim=-1).type_as(
             logits
@@ -107,8 +101,6 @@ class MultiHeadAttention(nn.Module):
         v_output = v_output.transpose(2, 1).reshape([batch, q_length, CONFIG_T5.d_kv * CONFIG_T5.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         v_output = self.linear(v_output)
-        # print('v_output', v_output.shape,
-        #       torch.var_mean(v_output))
         return v_output
 
 class LayerNormal(nn.Module):
@@ -160,17 +152,6 @@ class FeedForward(nn.Module):
     
 class EncoderLayer(nn.Module):
     def __init__(self, layer_index):
-        """
-        paper: https://arxiv.org/pdf/1910.10683.pdf
-        The encoder consists
-        of a stack of “blocks”, each of which comprises two subcomponents: a self-attention layer
-        followed by a small feed-forward network. Layer normalization (Ba et al., 2016) is applied to
-        the input of each subcomponent. We use a simplified version of layer normalization where
-        the activations are only rescaled and no additive bias is applied. After layer normalization,
-        a residual skip connection (He et al., 2016) adds each subcomponent’s input to its output.
-        Dropout (Srivastava et al., 2014) is applied within the feed-forward network, on the skip
-        connection, on the attention weights, and at the input and output of the entire stack  
-        """
         super().__init__()
         self.normal1 = LayerNormal()
         self.multi_head_attention = MultiHeadAttention(need_add_position_encoding=(layer_index == 0), type=AttentionType.ENCODER_ATTENTION)
@@ -304,6 +285,7 @@ class Transformer_byt5(nn.Module):
         global MODEL_T5
         MODEL_T5 = self
         MODEL_T5.mask_for_masked_attention = None
+        MODEL_T5.use_cache = False
 
     def get_attention_mask(self, seq_length):
         seq_ids = torch.arange(seq_length)
@@ -320,7 +302,7 @@ class Transformer_byt5(nn.Module):
             encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
             return encoder_hidden_states
     
-    def decode(self, encoder_hidden_states, labels=None, last_outputs=None):
+    def decode(self, encoder_hidden_states, labels=None, last_outputs=None, use_cache=False):
         # prepare inputs for decoder
         if last_outputs is None:
             last_outputs = last_outputs
@@ -331,8 +313,11 @@ class Transformer_byt5(nn.Module):
         shifted_input_ids[:, 1:] = last_outputs.clone()
         shifted_input_ids[:, 0] = 0
 
-        # decode
+        # decoder shared infos
         MODEL_T5.mask_for_masked_attention = self.get_attention_mask(shifted_input_ids.shape[1])
+        MODEL_T5.use_cache = use_cache
+
+        # 
         decoder_hidden_states = self.shared_embedding(shifted_input_ids)
         for i, layer in enumerate(self.decoder):
             decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
@@ -364,7 +349,7 @@ class Transformer_byt5(nn.Module):
         yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32)
         last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0)
         for i in range(max_length):
-            output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs) # (batch, 1, len_dict)
+            output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs, use_cache=True) # (batch, 1, len_dict)
             values, indices = output_logits.topk(1)
             last_outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
         return last_outputs

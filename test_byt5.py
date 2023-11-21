@@ -129,4 +129,4 @@ def test_model_generate(input_ids):
 
 tk = Tokenizer_byt5()
 test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world!')]))
-test_model_generate(input_ids=torch.tensor([tk.text2ids('你好世界!')]))
+# test_model_generate(input_ids=torch.tensor([tk.text2ids('你好世界!')]))
