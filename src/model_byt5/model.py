@@ -369,7 +369,7 @@ class Transformer_byt5(nn.Module):
             "loss": loss
         }
     
-    def clean_cache(self):
+    def clean_caches(self):
          layer: DecoderLayer
          for i, layer in enumerate(self.decoder):
              # clean self attention cache
@@ -377,7 +377,7 @@ class Transformer_byt5(nn.Module):
              # clean cross attention cache
              layer.multi_head_attention.cached_last_logits = None
 
-    def generate(self, inputs, max_length):
+    def generate(self, inputs, max_length, use_cache=True):
         # encode
         encoder_hidden_states = self.encode(inputs)
         # decode
@@ -386,7 +386,8 @@ class Transformer_byt5(nn.Module):
         last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0)
 
         # use_cache
-        CUR_MODEL.use_cache = True
+        CUR_MODEL.use_cache = use_cache
+        self.clean_caches()
         for i in range(max_length):
             output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs) # (batch, 1, len_dict)
             values, indices = output_logits.topk(1)
