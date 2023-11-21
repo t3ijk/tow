@@ -85,7 +85,7 @@ class MultiHeadAttention(nn.Module):
             a = torch.cat((a, zeros), -2) # expand row + 1
             a[:,:,:,-1:] = logits_column # set tail column
             a[:,:,-1:,:] = logits_row # set tail row
-            logits = a.clone()
+            logits = a
         else:
             # matmul
             logits = torch.matmul(
