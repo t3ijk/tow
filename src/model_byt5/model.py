@@ -79,13 +79,13 @@ class MultiHeadAttention(nn.Module):
                 q, k_last.transpose(3, 2)
             )
             a = self.cached_last_logits
-            zeros = torch.zeros([a.shape[0], a.shape[1], 1, a.shape[3]])
+            zeros = torch.zeros([a.shape[0], a.shape[1], a.shape[3], 1])
             a = torch.cat((a, zeros), -1) # expand column + 1
             zeros = torch.zeros([a.shape[0], a.shape[1], 1, a.shape[3]])
             a = torch.cat((a, zeros), -2) # expand row + 1
             a[:,:,:,-1:] = logits_column # set tail column
             a[:,:,-1:,:] = logits_row # set tail row
-            logits = a
+            logits = a.clone()
         else:
             # matmul
             logits = torch.matmul(
