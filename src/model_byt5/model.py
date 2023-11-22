@@ -133,12 +133,12 @@ class MultiHeadAttention(nn.Module):
             logits
         )
         # new values for the queries, (batch, num_heads, query_length, d_kv)
-        v_output = torch.matmul(attention_weights, self.v)
+        at_outputs = torch.matmul(attention_weights, self.v)
         # concat heads, (batch, query_length, num_heads*d_kv)
-        v_output = v_output.transpose(2, 1).reshape([batch, q_length, CUR_CONFIG.d_kv * CUR_CONFIG.num_heads])
+        at_outputs = at_outputs.transpose(2, 1).reshape([batch, q_length, CUR_CONFIG.d_kv * CUR_CONFIG.num_heads])
         # project back to d_model, (batch, query_length, d_model)
-        v_output = self.linear(v_output)
-        return v_output
+        at_outputs = self.linear(at_outputs)
+        return at_outputs
 
 class LayerNormal(nn.Module):
     def __init__(self):
