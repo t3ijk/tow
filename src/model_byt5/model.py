@@ -51,6 +51,7 @@ class MultiHeadAttention(nn.Module):
         self.attentionType = type
         self.cached_last_logits = None
         self.layer_index = layer_index
+        self.cached_last_at_outputs = None
 
     def forward(self, kv_sequences, q_sequences, mask=None):
         batch = kv_sequences.shape[0]
@@ -133,7 +134,42 @@ class MultiHeadAttention(nn.Module):
             logits
         )
         # new values for the queries, (batch, num_heads, query_length, d_kv)
-        at_outputs = torch.matmul(attention_weights, self.v)
+        if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION and self.cached_last_at_outputs is not None:
+            """ 
+            AB: cache for sef-attention
+            | A,  a2|   @  | B|   =         |AB+a2b1|
+            | a1, a3|      |b1|             |a1B+a3b1|  
+            """    
+            AB = self.cached_last_at_outputs
+            a1 = attention_weights[:,:,-1:,0:-1]
+            a2 = attention_weights[:,:,0:-1,-1:]
+            a3 = attention_weights[:,:,-1:,-1:]
+            b1 = self.v[:, :, -1:, :]
+            B = self.v[:, :, 0:-1, :]
+            AB = AB + torch.matmul(a2, b1)
+            zeros = torch.zeros([AB.shape[0], AB.shape[1], 1, AB.shape[3]])
+            AB = torch.cat((AB, zeros), -2) # expand row + 1
+            AB[:,:,-1:,:] = torch.matmul(a1, B) + torch.matmul(a3, b1)
+            at_outputs = AB
+        elif  self.attentionType == AttentionType.DECODER_CROSS_ATTENTION and self.cached_last_at_outputs is not None:  
+            """ 
+            AB: cache for cross-attention
+            | A |   @  | B|   =  |AB |
+            | a1|                |a1B|      
+            """    
+            AB = self.cached_last_at_outputs 
+            a1 = attention_weights[:,:,-1:,:]
+            zeros = torch.zeros([AB.shape[0], AB.shape[1], 1, AB.shape[3]])
+            AB = torch.cat((AB, zeros), -2) # expand row + 1
+            AB[:,:,-1:,:] = torch.matmul(a1, self.v)
+            at_outputs = AB
+        else:   
+            at_outputs = torch.matmul(attention_weights, self.v)
+
+        if self.attentionType == AttentionType.DECODER_CROSS_ATTENTION or self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+            self.cached_last_at_outputs = at_outputs.clone() 
+
+
         # concat heads, (batch, query_length, num_heads*d_kv)
         at_outputs = at_outputs.transpose(2, 1).reshape([batch, q_length, CUR_CONFIG.d_kv * CUR_CONFIG.num_heads])
         # project back to d_model, (batch, query_length, d_model)
@@ -180,7 +216,6 @@ class FeedForward(nn.Module):
         self.act = NewGELUActivation()
 
     def forward(self, hidden_states):
-        print('hidden_states0', hidden_states.shape)
         hidden_gelu = self.act(self.wi_0(hidden_states))
         hidden_linear = self.wi_1(hidden_states)
         hidden_states = hidden_gelu * hidden_linear
