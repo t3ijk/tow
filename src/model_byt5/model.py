@@ -180,6 +180,7 @@ class FeedForward(nn.Module):
         self.act = NewGELUActivation()
 
     def forward(self, hidden_states):
+        print('hidden_states0', hidden_states.shape)
         hidden_gelu = self.act(self.wi_0(hidden_states))
         hidden_linear = self.wi_1(hidden_states)
         hidden_states = hidden_gelu * hidden_linear
