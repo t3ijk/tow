@@ -101,7 +101,7 @@ def test_model_1():
 # test_model_1()
 
 
-def test_model_generate(input_ids, use_cache=True):
+def test_model_generate(input_ids, use_cache=True, max_length=200):
     state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
@@ -118,20 +118,22 @@ def test_model_generate(input_ids, use_cache=True):
     t0 = time.time()
     n = 1
     for i in range(n):
-        out_ids = model.generate(input_ids, max_length=20)
+        out_ids = model.generate(input_ids, max_length=max_length)
         tk = Tokenizer_byt5()
         # 
         for ids in out_ids.tolist():
             print(tk.ids2text(ids), ids)
 
     t1 = time.time()
-    print(out_ids, 'deltaT', (t1 - t0) / n)
+    print('deltaT', (t1 - t0) / n)
+    return out_ids
+    
 
 tk = Tokenizer_byt5()
 # test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world!'), tk.text2ids('hello world!')]))
-# test_model_generate(input_ids=torch.tensor([tk.text2ids('你好世界!')]))
-
-test_model_generate(input_ids=torch.tensor([tk.text2ids('123')]), use_cache=True)
-test_model_generate(input_ids=torch.tensor([tk.text2ids('123')]), use_cache=False)
+# test_model_generate(input_ids=torch.tensor([tk.text2ids('一条大')]))
+# test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world')]), use_cache=False)
 
 
+out_ids = test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world!'), tk.text2ids('你好世界')]), use_cache=True, max_length=200)
+print('out_ids', out_ids)

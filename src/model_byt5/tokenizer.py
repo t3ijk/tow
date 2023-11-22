@@ -34,10 +34,11 @@ class Tokenizer_byt5:
                 encoded = str.encode('utf-8')
                 results.extend([chr(code) for code in bytearray(encoded)])
 
-        if results[-1] in [self.eos_token, self.unk_token, self.pad_token]:
-            pass
-        else:
-            results.append(self.eos_token)
+        # not auto add eos_token 
+        # if results[-1] in [self.eos_token, self.unk_token, self.pad_token]:
+        #     pass
+        # else:
+        #     results.append(self.eos_token)
 
         return results
 

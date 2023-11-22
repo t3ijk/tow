@@ -138,8 +138,6 @@ class MultiHeadAttention(nn.Module):
         v_output = v_output.transpose(2, 1).reshape([batch, q_length, CUR_CONFIG.d_kv * CUR_CONFIG.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         v_output = self.linear(v_output)
-        print('a_out', torch.var_mean(v_output), v_output.shape)
-
         return v_output
 
 class LayerNormal(nn.Module):
@@ -404,6 +402,13 @@ class Transformer_byt5(nn.Module):
             output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs) # (batch, 1, len_dict)
             values, indices = output_logits.topk(1)
             last_outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
+
+            # stop by special tokens: 0, 1
+            ends = last_outputs[:, -1] # last tokens
+            ones_zeros = torch.where(ends < 2, 1, 0) # check all special tokens
+            stop = torch.equal(torch.sum(ones_zeros), torch.tensor(ends.shape[0]))
+            if stop:
+                break
         return last_outputs
 
 # global 
