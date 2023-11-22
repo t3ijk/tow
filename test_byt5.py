@@ -146,7 +146,7 @@ def test_generate1(use_cache):
 # test_generate1(True)
 # test_generate1(True)
 def test_generate2(use_cache):
-    out_ids = test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world!'), tk.text2ids('你好世界')]), use_cache=use_cache, max_length=10)
+    out_ids = test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world!'), tk.text2ids('你好世界')]), use_cache=use_cache, max_length=100)
     """
     will print:
 
@@ -154,4 +154,6 @@ def test_generate2(use_cache):
     for ids in out_ids.tolist():
         print(tk.ids2text(ids))
 
+
+test_generate2(False)
 test_generate2(True)

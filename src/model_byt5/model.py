@@ -418,10 +418,10 @@ class Transformer_byt5(nn.Module):
     def clean_caches(self):
          layer: DecoderLayer
          for i, layer in enumerate(self.decoder):
-             # clean self attention cache
              layer.masked_multi_head_attention.cached_last_logits = None
-             # clean cross attention cache
              layer.multi_head_attention.cached_last_logits = None
+             layer.masked_multi_head_attention.cached_last_at_outputs = None
+             layer.multi_head_attention.cached_last_at_outputs = None
 
     def generate(self, inputs, max_length, use_cache=True):
         # encode
