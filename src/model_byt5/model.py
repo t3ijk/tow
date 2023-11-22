@@ -166,7 +166,7 @@ class MultiHeadAttention(nn.Module):
         else:   
             at_outputs = torch.matmul(attention_weights, self.v)
 
-        if self.attentionType == AttentionType.DECODER_CROSS_ATTENTION or self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+        if CUR_MODEL.use_cache and self.attentionType != AttentionType.ENCODER_ATTENTION:
             self.cached_last_at_outputs = at_outputs.clone() 
 
 
