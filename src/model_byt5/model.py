@@ -366,7 +366,6 @@ class Transformer_byt5(nn.Module):
         return output_logits
         
     def forward(self, inputs, labels=None):
-        print('forward', torch.rand(1))
         # encode
         encoder_hidden_states = self.encode(inputs)
         # decode
