@@ -108,6 +108,10 @@ class MultiHeadAttention(nn.Module):
         attention_weights = nn.functional.softmax(logits.float(), dim=-1).type_as(
             logits
         )
+
+        attention_weights = nn.functional.dropout(
+            attention_weights, p=CUR_CONFIG.dropout_rate, training=self.training
+        )  
         # new values for the queries, (batch, num_heads, query_length, d_kv)
         if CUR_MODEL.use_cache and self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             cached_v = self.cached_kv_hidden_states[1]
@@ -188,9 +192,9 @@ class EncoderLayer(nn.Module):
             self.need_input_stack_dropout = True
             self.input_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
         
-        if layer_index == CUR_CONFIG.num_layers:
-            self.need_output_stack_dropout = True
-            self.output_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate) 
+        # if layer_index == CUR_CONFIG.num_layers:
+        #     self.need_output_stack_dropout = True
+        #     self.output_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate) 
         self.dropout1 = nn.Dropout(CUR_CONFIG.dropout_rate)
         self.dropout2 = nn.Dropout(CUR_CONFIG.dropout_rate)
         
@@ -198,7 +202,11 @@ class EncoderLayer(nn.Module):
     def forward(self, hidden_states):
         # main and residual hidden_states
         if self.need_input_stack_dropout:
+            print('0 d', torch.var_mean(hidden_states), hidden_states[-1, -1, -10:])
+
             hidden_states = self.input_stack_dropout(hidden_states)
+            print('1 d', torch.var_mean(hidden_states))
+
         # hf
         hidden_states_normalized = self.normal1(hidden_states)
         attention_outs = self.multi_head_attention(
@@ -208,8 +216,8 @@ class EncoderLayer(nn.Module):
         hidden_states_normalized = self.normal2(hidden_states)
         feed_forward_outs = self.feed_forward(hidden_states_normalized)
         hidden_states = hidden_states + self.dropout2(feed_forward_outs)
-        if self.need_output_stack_dropout:
-            hidden_states = self.output_stack_dropout(hidden_states)
+        # if self.need_output_stack_dropout:
+        #     hidden_states = self.output_stack_dropout(hidden_states)
        
         return hidden_states
     
@@ -230,9 +238,9 @@ class DecoderLayer(nn.Module):
             self.need_input_stack_dropout = True
             self.input_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
         
-        if layer_index == CUR_CONFIG.num_decoder_layers:
-            self.need_output_stack_dropout = True
-            self.output_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
+        # if layer_index == CUR_CONFIG.num_decoder_layers:
+        #     self.need_output_stack_dropout = True
+        #     self.output_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
         
         self.dropout1 = nn.Dropout(CUR_CONFIG.dropout_rate)
         self.dropout2 = nn.Dropout(CUR_CONFIG.dropout_rate)
@@ -254,8 +262,8 @@ class DecoderLayer(nn.Module):
         feed_forward_outs = self.feed_forward(hidden_states_normalized)
         hidden_states = hidden_states + self.dropout3(feed_forward_outs)
         
-        if self.need_output_stack_dropout:
-            hidden_states = self.output_stack_dropout(hidden_states)
+        # if self.need_output_stack_dropout:
+        #     hidden_states = self.output_stack_dropout(hidden_states)
         return hidden_states
 
 class PositionalEncoding(nn.Module):
@@ -326,6 +334,8 @@ class Transformer_byt5(nn.Module):
                 encoder_hidden_states = layer(encoder_hidden_states)
             
             encoder_hidden_states = self.encoder_final_layer_norm(encoder_hidden_states)
+            dropout = self.encoder[0].input_stack_dropout
+            encoder_hidden_states = dropout(encoder_hidden_states)
             return encoder_hidden_states
     
     def decode(self, encoder_hidden_states, labels=None, last_outputs=None, use_cache=False):
@@ -350,10 +360,13 @@ class Transformer_byt5(nn.Module):
         for i, layer in enumerate(self.decoder):
             decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
         decoder_hidden_states = self.decoder_final_layer_norm(decoder_hidden_states)
+        dropout = self.decoder[0].input_stack_dropout
+        decoder_hidden_states = dropout(decoder_hidden_states)
         output_logits = self.linear(decoder_hidden_states) # -> (batch, n, d_dictionary)
         return output_logits
         
     def forward(self, inputs, labels=None):
+        print('forward', torch.rand(1))
         # encode
         encoder_hidden_states = self.encode(inputs)
         # decode
