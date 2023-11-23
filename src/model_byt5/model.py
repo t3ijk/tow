@@ -64,8 +64,6 @@ class MultiHeadAttention(nn.Module):
         self.q = self.WQ(q_sequences).reshape([batch, q_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
         self.k = self.WK(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
         self.v = self.WV(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
-
-        print('self.q', self.q.shape)
         if self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             cached_k = self.cached_kv_hidden_states[0]
             k = torch.cat((cached_k, self.k), 2)
@@ -395,12 +393,14 @@ class Transformer_byt5(nn.Module):
             ends = outputs[:, -1] # last tokens
             ones_zeros = torch.where(ends < 2, 1, 0) # check all special tokens
             stop = torch.equal(torch.sum(ones_zeros), torch.tensor(ends.shape[0]))
-            # if stop:
-            #     break
+            if stop:
+                break
 
             if CUR_MODEL.use_cache:
                 last_outputs = torch.cat((last_outputs, outputs), 1)
-                
+            else:
+                last_outputs = outputs
+
         return last_outputs
 
 # global 
