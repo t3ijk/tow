@@ -64,18 +64,19 @@ def test_model_forward(input_ids, labels):
         new_name = hf_model_weight_name_mapping(name)
         if new_name:
             state_dict_new[hf_model_weight_name_mapping(name)] = tensor_
-    global model        
-
+    global model  
     if model is None:
         model = Transformer_byt5()
         model.load_state_dict(state_dict_new)
-        model = model.eval()
+        model = model.train()  
     # input_ids = torch.tensor([list(str_in.encode("utf-8"))]) + 3  # add 3 for special tokens
     # labels = torch.tensor([list(str_out.encode("utf-8"))]) + 3  # add 3 for special tokens
 
     t0 = time.time()
     n = 1
     for i in range(n):
+        print('model.training', model.training)
+        torch.manual_seed(0)
         out_infos = model(input_ids, labels=labels)
     t1 = time.time()
     print(out_infos['loss'], 'deltaT', (t1 - t0) / n)
@@ -98,7 +99,7 @@ def test_model_1():
         test_model_forward(input_ids, label_ids) 
 
 # tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
-# test_model_1()
+test_model_1()
 
 
 def test_model_generate(input_ids, use_cache=False, max_length=200):
@@ -155,5 +156,5 @@ def test_generate2(use_cache):
         print(tk.ids2text(ids))
 
 
-test_generate2(False)
-test_generate2(True)
+# test_generate2(False)
+# test_generate2(True)
