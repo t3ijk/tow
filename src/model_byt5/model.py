@@ -49,9 +49,8 @@ class MultiHeadAttention(nn.Module):
             self.input_positional_encoding = PositionalEncoding()
 
         self.attentionType = type
-        self.cached_last_logits = None
         self.layer_index = layer_index
-        self.cached_last_at_outputs = None
+        self.cached_kv_hidden_states = None
 
     def forward(self, kv_sequences, q_sequences, mask=None):
         batch = kv_sequences.shape[0]
@@ -66,48 +65,21 @@ class MultiHeadAttention(nn.Module):
         self.k = self.WK(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
         self.v = self.WV(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
 
-        if self.cached_last_logits is not None and self.attentionType != AttentionType.ENCODER_ATTENTION:
-            # mat @ vector
-            q = self.q
-            k = self.k
-            q_last = q[:, :, -1:, :]
-            k_last = k[:, :, -1:, :]
-            logits_row = torch.matmul(
-                q_last, k.transpose(3, 2)
+        print('self.q', self.q.shape)
+        if self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+            cached_k = self.cached_kv_hidden_states[0]
+            k = torch.cat((cached_k, self.k), 2)
+            self.cached_kv_hidden_states[0] = k.clone()
+            logits = torch.matmul(
+                self.q, k.transpose(3, 2)
             )
-
-            if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
-                # only fo self attention
-                logits_column = torch.matmul(
-                    q, k_last.transpose(3, 2)
-                )
-            a = self.cached_last_logits
-
-            if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
-                # only fo self attention
-                zeros = torch.zeros([a.shape[0], a.shape[1], a.shape[3], 1])
-                a = torch.cat((a, zeros), -1) # expand column + 1
-
-            zeros = torch.zeros([a.shape[0], a.shape[1], 1, a.shape[3]])
-            a = torch.cat((a, zeros), -2) # expand row + 1
-
-            if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
-                # only fo self attention
-                a[:,:,:,-1:] = logits_column # set tail column
-    
-            a[:,:,-1:,:] = logits_row # set tail row
-            logits = a
+            pass
         else:
-            # matmul
+            # (batch, num_heads, sequence_length, d_kv) @ (batch, num_heads, d_kv, sequence_length) -> (batch, num_heads, sequence_length, sequence_length)
             logits = torch.matmul(
                 self.q, self.k.transpose(3, 2)
-            )
-
-            # if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
-            #     print('logits', self.attentionType, logits, logits.shape, self.layer_index)
-        if CUR_MODEL.use_cache and self.attentionType != AttentionType.ENCODER_ATTENTION:
-            self.cached_last_logits = logits.clone()
-
+            )  
+       
         # cross attention no need pos_bias ?
         pos_bias = None
         if self.attentionType == AttentionType.ENCODER_ATTENTION:
@@ -118,8 +90,13 @@ class MultiHeadAttention(nn.Module):
         if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             # index 0, AttentionType.DECODER_MASKED_ATTENTION 
             pos_coding = CUR_MODEL.decoder[0].masked_multi_head_attention.input_positional_encoding
-            pos_bias = pos_coding(logits.shape[2], logits.shape[3], bidirectional=False)    
-        
+
+            # real_len_sequence equal to  k length, even use_cache
+            real_len_sequence = logits.shape[3]
+            pos_bias = pos_coding(real_len_sequence, real_len_sequence, bidirectional=False)
+            if CUR_MODEL.use_cache:
+                pos_bias = pos_bias[:, :, -1:, :]
+
         # first layer need_add_position_encoding
         # (batch, num_heads, query_sequencies_length, key_sequencies_length) + (1, num_heads, query_sequencies_length, key_sequencies_length)
         if pos_bias is not None:
@@ -134,46 +111,22 @@ class MultiHeadAttention(nn.Module):
             logits
         )
         # new values for the queries, (batch, num_heads, query_length, d_kv)
-        if self.attentionType == AttentionType.DECODER_MASKED_ATTENTION and self.cached_last_at_outputs is not None:
-            """ 
-            AB: cache for sef-attention
-            | A,  a2|   @  | B|   =         |AB+a2b1|
-            | a1, a3|      |b1|             |a1B+a3b1|  
-            """    
-            AB = self.cached_last_at_outputs
-            a1 = attention_weights[:,:,-1:,0:-1]
-            a2 = attention_weights[:,:,0:-1,-1:]
-            a3 = attention_weights[:,:,-1:,-1:]
-            b1 = self.v[:, :, -1:, :]
-            B = self.v[:, :, 0:-1, :]
-            AB = AB + torch.matmul(a2, b1)
-            zeros = torch.zeros([AB.shape[0], AB.shape[1], 1, AB.shape[3]])
-            AB = torch.cat((AB, zeros), -2) # expand row + 1
-            AB[:,:,-1:,:] = torch.matmul(a1, B) + torch.matmul(a3, b1)
-            at_outputs = AB
-        elif  self.attentionType == AttentionType.DECODER_CROSS_ATTENTION and self.cached_last_at_outputs is not None:  
-            """ 
-            AB: cache for cross-attention
-            | A |   @  | B|   =  |AB |
-            | a1|                |a1B|      
-            """    
-            AB = self.cached_last_at_outputs 
-            a1 = attention_weights[:,:,-1:,:]
-            zeros = torch.zeros([AB.shape[0], AB.shape[1], 1, AB.shape[3]])
-            AB = torch.cat((AB, zeros), -2) # expand row + 1
-            AB[:,:,-1:,:] = torch.matmul(a1, self.v)
-            at_outputs = AB
-        else:   
+        if CUR_MODEL.use_cache and self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
+            cached_v = self.cached_kv_hidden_states[1]
+            v = torch.cat((cached_v, self.v), 2)
+            self.cached_kv_hidden_states[1] = v.clone()
+            at_outputs = torch.matmul(attention_weights, v)
+        else:
             at_outputs = torch.matmul(attention_weights, self.v)
-
-        if CUR_MODEL.use_cache and self.attentionType != AttentionType.ENCODER_ATTENTION:
-            self.cached_last_at_outputs = at_outputs.clone() 
-
 
         # concat heads, (batch, query_length, num_heads*d_kv)
         at_outputs = at_outputs.transpose(2, 1).reshape([batch, q_length, CUR_CONFIG.d_kv * CUR_CONFIG.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         at_outputs = self.linear(at_outputs)
+        # print('at_outputs', torch.var_mean(at_outputs), at_outputs.shape)
+
+        if CUR_MODEL.use_cache and self.cached_kv_hidden_states is None:
+            self.cached_kv_hidden_states = [self.k.clone(), self.v.clone()]
         return at_outputs
 
 class LayerNormal(nn.Module):
@@ -359,7 +312,6 @@ class Transformer_byt5(nn.Module):
         
         self.mask_for_masked_attention = None
         self.use_cache = False
-
         global CUR_MODEL
         CUR_MODEL = self
 
@@ -391,12 +343,16 @@ class Transformer_byt5(nn.Module):
 
         # decoder shared infos
         CUR_MODEL.mask_for_masked_attention = self.get_attention_mask(shifted_input_ids.shape[1])
+        if CUR_MODEL.use_cache:
+            shifted_input_ids = shifted_input_ids[:,-1:]
+            CUR_MODEL.mask_for_masked_attention = CUR_MODEL.mask_for_masked_attention[:,:,-1:,:]
         # 
         decoder_hidden_states = self.shared_embedding(shifted_input_ids)
+        layer: DecoderLayer
         for i, layer in enumerate(self.decoder):
             decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
         decoder_hidden_states = self.decoder_final_layer_norm(decoder_hidden_states)
-        output_logits = self.linear(decoder_hidden_states)
+        output_logits = self.linear(decoder_hidden_states) # -> (batch, n, d_dictionary)
         return output_logits
         
     def forward(self, inputs, labels=None):
@@ -418,10 +374,7 @@ class Transformer_byt5(nn.Module):
     def clean_caches(self):
          layer: DecoderLayer
          for i, layer in enumerate(self.decoder):
-             layer.masked_multi_head_attention.cached_last_logits = None
-             layer.multi_head_attention.cached_last_logits = None
-             layer.masked_multi_head_attention.cached_last_at_outputs = None
-             layer.multi_head_attention.cached_last_at_outputs = None
+             layer.masked_multi_head_attention.cached_kv_hidden_states = None
 
     def generate(self, inputs, max_length, use_cache=True):
         # encode
@@ -429,22 +382,25 @@ class Transformer_byt5(nn.Module):
         # decode
         batch_size = encoder_hidden_states.shape[0]
         yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32)
-        last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0)
+        last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0, dtype=torch.int32)
 
         # use_cache
         CUR_MODEL.use_cache = use_cache
         self.clean_caches()
         for i in range(max_length):
-            output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs) # (batch, 1, len_dict)
+            output_logits = self.decode(encoder_hidden_states, last_outputs=last_outputs) # -> (batch, n, len_dict)
             values, indices = output_logits.topk(1)
-            last_outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
-
+            outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
             # stop by special tokens: 0, 1
-            ends = last_outputs[:, -1] # last tokens
+            ends = outputs[:, -1] # last tokens
             ones_zeros = torch.where(ends < 2, 1, 0) # check all special tokens
             stop = torch.equal(torch.sum(ones_zeros), torch.tensor(ends.shape[0]))
-            if stop:
-                break
+            # if stop:
+            #     break
+
+            if CUR_MODEL.use_cache:
+                last_outputs = torch.cat((last_outputs, outputs), 1)
+                
         return last_outputs
 
 # global 
