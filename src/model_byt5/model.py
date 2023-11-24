@@ -67,7 +67,7 @@ class MultiHeadAttention(nn.Module):
         if self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             cached_k = self.cached_kv_hidden_states[0]
             k = torch.cat((cached_k, self.k), 2)
-            self.cached_kv_hidden_states[0] = k.clone()
+            self.cached_kv_hidden_states[0] = k
             logits = torch.matmul(
                 self.q, k.transpose(3, 2)
             )
@@ -116,7 +116,7 @@ class MultiHeadAttention(nn.Module):
         if CUR_MODEL.use_cache and self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             cached_v = self.cached_kv_hidden_states[1]
             v = torch.cat((cached_v, self.v), 2)
-            self.cached_kv_hidden_states[1] = v.clone()
+            self.cached_kv_hidden_states[1] = v
             at_outputs = torch.matmul(attention_weights, v)
         else:
             at_outputs = torch.matmul(attention_weights, self.v)
@@ -128,7 +128,7 @@ class MultiHeadAttention(nn.Module):
         # print('at_outputs', torch.var_mean(at_outputs), at_outputs.shape)
 
         if CUR_MODEL.use_cache and self.cached_kv_hidden_states is None:
-            self.cached_kv_hidden_states = [self.k.clone(), self.v.clone()]
+            self.cached_kv_hidden_states = [self.k, self.v]
         return at_outputs
 
 class LayerNormal(nn.Module):
@@ -343,7 +343,7 @@ class Transformer_byt5(nn.Module):
             last_outputs = labels[:, :-1] # Delete the last label, and the exactly one hopefully will be generated as "next token".
         shifted_input_ids = torch.zeros ((last_outputs.shape[0], last_outputs.shape[1] + 1), 
                                          dtype=torch.int32)
-        shifted_input_ids[:, 1:] = last_outputs.clone()
+        shifted_input_ids[:, 1:] = last_outputs
         shifted_input_ids[:, 0] = 0
 
         # decoder shared infos
