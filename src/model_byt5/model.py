@@ -383,6 +383,7 @@ class Transformer_byt5(nn.Module):
          for i, layer in enumerate(self.decoder):
              layer.masked_multi_head_attention.cached_kv_hidden_states = None
 
+    @torch.no_grad()
     def generate(self, inputs, max_length, use_cache=True):
         # encode
         encoder_hidden_states = self.encode(inputs)
