@@ -85,6 +85,11 @@ def get_batch(size, datas, offset):
 
     return inputs_with_pads, labels_with_pads   
 
+# def log(index_of_epoch=0, n_epoch=1, steps=0, epoch_steps=1, remain_steps=0, all_steps=1, loss=0, ts):
+
+        # print(f'{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}', 'loss:', loss.tolist(), 'ts', delta_t, 'h', delta_t * remain_steps / 3600)
+
+
 
 def train_loop(model: Transformer_byt5, datas, checkpoints_path):
 
@@ -115,10 +120,14 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
     last_estimate_loss = torch.tensor(-1)
     gradient_accumulation_steps = 2
 
+
+    last_t = time.time()
+    all_past_steps = 0
     for index_of_epoch in range(n_epoch):
         offset = 0
         steps = 0
-        all_steps = math.floor(n_samples / batch_size)
+        epoch_steps = math.floor(n_samples / batch_size)
+        
         while n_samples - offset > batch_size * gradient_accumulation_steps:
                 
                 need_estimate_loss = False
@@ -131,9 +140,18 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
                     _, loss = model(input_ids, label_ids)
                     offset += batch_size
                     steps += 1
+                    all_past_steps += 1
                     if steps % steps_for_estimate_loss == 0:
                         need_estimate_loss = True
-                    print(f'{index_of_epoch}/{n_epoch}-{steps}/{all_steps}', 'loss:', loss.tolist(), time.time())
+
+                    now = time.time()
+
+                    delta_t = now - last_t
+                    last_t = now
+                    
+                    all_steps = n_epoch * epoch_steps
+                    remain_steps = all_steps - all_past_steps
+                    print(f'{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}', 'loss:', loss.tolist(), 'ts', now, 'h', delta_t * remain_steps / 3600)
                     loss = loss / gradient_accumulation_steps
                     loss.backward()
 
