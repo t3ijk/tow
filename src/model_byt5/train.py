@@ -7,7 +7,8 @@ import json
 from dataclasses import dataclass, asdict
 import shutil
 from src.utils import delete_files_in_directory
-
+import math
+import time
 # https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/model.py#L263
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
     # start with all of the candidate parameters
@@ -50,6 +51,41 @@ def estimate_loss(model):
     model.train()
     return loss
 
+
+def get_batch(size, datas, offset):
+    inputs = []
+    labels = []
+
+    max_in_ids = 0
+    max_la_ids = 0
+
+    for data in datas[offset:offset+size]:
+        in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 258]
+        la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")]]
+        if len(in_ids) > max_in_ids:
+            max_in_ids = len(in_ids)
+        if len(la_ids) > max_la_ids:
+            max_la_ids = len(la_ids)            
+        inputs.append(in_ids)
+        labels.append(la_ids)
+
+
+
+    inputs_with_pads = []
+    for l in inputs:
+        n_pads = max_in_ids - len(l)
+        l = [*l, *[0 for _ in range(n_pads)]]
+        inputs_with_pads.append(l)
+
+    labels_with_pads = []
+    for l in labels:
+        n_pads = max_la_ids - len(l)
+        l = [*l, *[-100 for _ in range(n_pads)]]
+        labels_with_pads.append(l) 
+
+    return inputs_with_pads, labels_with_pads   
+
+
 def train_loop(model: Transformer_byt5, datas, checkpoints_path):
 
     # adamw optimizer
@@ -73,44 +109,54 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
     index_of_epoch = 0
 
     n_samples = len(datas)
-    n_batch = 10
+    batch_size = 4
     n_epoch = 2
-    n_estimate_loss = 5
-    last_estimate_loss = -1
-
-    out_dir = 'ckpt'
+    steps_for_estimate_loss = 50
+    last_estimate_loss = torch.tensor(-1)
+    gradient_accumulation_steps = 2
 
     for index_of_epoch in range(n_epoch):
-        for index_of_batch in range(n_batch):
+        offset = 0
+        steps = 0
+        all_steps = math.floor(n_samples / batch_size)
+        while n_samples - offset > batch_size * gradient_accumulation_steps:
                 
-                data = datas[index_of_batch]
-                inputs = [[y + 3 for y in data[0].encode("utf-8")]]
-                outputs = [[258, *[y + 3 for y in data[1].encode("utf-8")]]]
-                # batches = [[inputs, outputs]]
-                input_ids = torch.tensor(inputs)
-                label_ids = torch.tensor(outputs)
-                _, loss = model(input_ids, label_ids)
-                print(index_of_batch, loss)
-                loss.backward()
+                need_estimate_loss = False
+                for _ in range(gradient_accumulation_steps):
+                    inputs, labels = get_batch(batch_size, datas, offset)
+                    input_ids = torch.tensor(inputs)
+                    label_ids = torch.tensor(labels)
+
+                    # print(input_ids, label_ids)
+                    _, loss = model(input_ids, label_ids)
+                    offset += batch_size
+                    steps += 1
+                    if steps % steps_for_estimate_loss == 0:
+                        need_estimate_loss = True
+                    print(f'{index_of_epoch}-{steps}/{all_steps}', 'loss:', loss.tolist(), time.time())
+                    loss = loss / gradient_accumulation_steps
+                    loss.backward()
+
                 if grad_clip != 0.0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
-                if index_of_batch % n_estimate_loss == 0:
-                     last_estimate_loss = estimate_loss(model)
-                     print('estimate_loss: ', last_estimate_loss)
+                if need_estimate_loss:
+                    need_estimate_loss = False
+                    last_estimate_loss = estimate_loss(model)
+                    print('estimate_loss: ', last_estimate_loss)
 
-        train_info = {
-            'model_args': '',
-            'iter_num': f"{index_of_epoch}-{index_of_batch}",
-            'best_val_loss': last_estimate_loss.tolist(),
-        }
+                    train_info = {
+                        'model_args': '',
+                        'iter_num': f"{index_of_epoch}-{steps}",
+                        'best_val_loss': last_estimate_loss.tolist(),
+                    }
 
-        delete_files_in_directory(checkpoints_path)
-        fold = f"{checkpoints_path}/{index_of_epoch}-{index_of_batch}/"
-        os.mkdir(fold) 
-        torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
-        with open(f"{fold}/config.json", "w") as f:
-          json.dump(asdict(model.byt5config), f, ) 
-        with open(f"{fold}/train_info.json", "w") as f:
-          json.dump(train_info, f, indent=4)   
+                    delete_files_in_directory(checkpoints_path)
+                    fold = f"{checkpoints_path}/{index_of_epoch}-{steps}/"
+                    os.mkdir(fold) 
+                    torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
+                    with open(f"{fold}/config.json", "w") as f:
+                        json.dump(asdict(model.byt5config), f, indent=4) 
+                    with open(f"{fold}/train_info.json", "w") as f:
+                        json.dump(train_info, f, indent=4)   
