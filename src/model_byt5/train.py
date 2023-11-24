@@ -185,4 +185,4 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
                     with open(f"{fold}/train_info.json", "w") as f:
                         json.dump(train_info, f, indent=4)   
 
-    fs.close()                        
+    os.close('fd')                        
