@@ -2,6 +2,7 @@
 import inspect
 import torch
 from src.model_byt5.model import Transformer_byt5
+import os
 
 # https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/model.py#L263
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
@@ -68,8 +69,12 @@ def train_loop(model: Transformer_byt5, datas):
     index_of_epoch = 0
 
     n_samples = len(datas)
-    n_batch = n_samples
+    n_batch = 10
     n_epoch = 2
+    n_estimate_loss = 5
+    last_estimate_loss = -1
+
+    out_dir = 'ckpt'
 
     for index_of_epoch in range(n_epoch):
         for index_of_batch in range(n_batch):
@@ -87,9 +92,20 @@ def train_loop(model: Transformer_byt5, datas):
                     torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
-                if index_of_batch % 30 == 0:
-                     print('estimate_loss: ', estimate_loss(model))
+                if index_of_batch % n_estimate_loss == 0:
+                     last_estimate_loss = estimate_loss(model)
+                     print('estimate_loss: ', last_estimate_loss)
 
+        train_info = {
+            'model_args': '',
+            'iter_num': f"{index_of_epoch}-{index_of_batch}",
+            'best_val_loss': last_estimate_loss,
+        }
+
+        os.mkdir(f"checkpoints/{index_of_epoch}-{index_of_batch}/") 
+        torch.save(model.state_dict(), f"checkpoints/{index_of_epoch}-{index_of_batch}/pytorch_model.bin")
+        torch.save(model.byt5config, f"checkpoints/{index_of_epoch}-{index_of_batch}/config.json") 
+        torch.save(train_info, f"checkpoints/{index_of_epoch}-{index_of_batch}/train_info.json")   
+  
                 
-                
-                
+            
