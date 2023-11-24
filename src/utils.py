@@ -1,3 +1,5 @@
+import shutil
+import os
 def print_model_info(model):
     # print('Architecture: ', model)
     # print('parameters count: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
@@ -10,3 +12,16 @@ def print_model_info(model):
         print(pn, p.dim())
 
 
+def delete_files_in_directory(directory_path):
+   try:
+     files = os.listdir(directory_path)
+     for file in files:
+        file_path = os.path.join(directory_path, file)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+        else:
+            shutil.rmtree(file_path)
+
+     print(f"{directory_path} All files deleted successfully.")
+   except OSError:
+     print("Error occurred while deleting files.")

@@ -6,6 +6,7 @@ import os
 import json
 from dataclasses import dataclass, asdict
 import shutil
+from src.utils import delete_files_in_directory
 
 # https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/model.py#L263
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
@@ -105,10 +106,11 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
             'best_val_loss': last_estimate_loss.tolist(),
         }
 
+        delete_files_in_directory(checkpoints_path)
         fold = f"{checkpoints_path}/{index_of_epoch}-{index_of_batch}/"
         os.mkdir(fold) 
         torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
         with open(f"{fold}/config.json", "w") as f:
-          json.dump(asdict(model.byt5config), f, indent=4) 
+          json.dump(asdict(model.byt5config), f, ) 
         with open(f"{fold}/train_info.json", "w") as f:
           json.dump(train_info, f, indent=4)   

@@ -6,7 +6,7 @@ import torch
 import json
 from collections import OrderedDict
 import time
-from src.utils import print_model_info
+from src.utils import print_model_info, delete_files_in_directory
 from src.model_byt5.train import train_loop
 import shutil
 import os
@@ -177,12 +177,7 @@ def test_train():
     with open('./datas/datas.json', 'r') as f:
         datas = json.load(f)
     checkpoints_path = './checkpoints'
-    try:
-        shutil.rmtree(checkpoints_path)
-    except:
-        pass 
-    os.mkdir(checkpoints_path)
+    delete_files_in_directory(checkpoints_path)
     train_loop(model, datas, checkpoints_path)
-
 
 test_train()
