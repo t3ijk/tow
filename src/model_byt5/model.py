@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from src.model_byt5.utils import _relative_position_bucket
 import math
 from enum import Enum

@@ -3,6 +3,9 @@ import inspect
 import torch
 from src.model_byt5.model import Transformer_byt5
 import os
+import json
+from dataclasses import dataclass, asdict
+import shutil
 
 # https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/model.py#L263
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
@@ -46,7 +49,7 @@ def estimate_loss(model):
     model.train()
     return loss
 
-def train_loop(model: Transformer_byt5, datas):
+def train_loop(model: Transformer_byt5, datas, checkpoints_path):
 
     # adamw optimizer
     learning_rate = 6e-4 # max learning rate
@@ -99,13 +102,13 @@ def train_loop(model: Transformer_byt5, datas):
         train_info = {
             'model_args': '',
             'iter_num': f"{index_of_epoch}-{index_of_batch}",
-            'best_val_loss': last_estimate_loss,
+            'best_val_loss': last_estimate_loss.tolist(),
         }
 
-        os.mkdir(f"checkpoints/{index_of_epoch}-{index_of_batch}/") 
-        torch.save(model.state_dict(), f"checkpoints/{index_of_epoch}-{index_of_batch}/pytorch_model.bin")
-        torch.save(model.byt5config, f"checkpoints/{index_of_epoch}-{index_of_batch}/config.json") 
-        torch.save(train_info, f"checkpoints/{index_of_epoch}-{index_of_batch}/train_info.json")   
-  
-                
-            
+        fold = f"{checkpoints_path}/{index_of_epoch}-{index_of_batch}/"
+        os.mkdir(fold) 
+        torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
+        with open(f"{fold}/config.json", "w") as f:
+          json.dump(asdict(model.byt5config), f, indent=4) 
+        with open(f"{fold}/train_info.json", "w") as f:
+          json.dump(train_info, f, indent=4)   

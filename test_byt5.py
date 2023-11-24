@@ -8,7 +8,8 @@ from collections import OrderedDict
 import time
 from src.utils import print_model_info
 from src.model_byt5.train import train_loop
-
+import shutil
+import os
 model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
 model_config_path = "./test_models/byt5-small/config.json"
 
@@ -166,10 +167,22 @@ def test_generate2(use_cache):
 # test_generate2(True)
 
 
-model = Transformer_byt5(config=config)
-# print_model_info(model)
 
-with open('./datas/datas.json', 'r') as f:
-    datas = json.load(f)
 
-train_loop(model, datas)
+
+def test_train():
+    model = Transformer_byt5(config=config)
+    # print_model_info(model)
+
+    with open('./datas/datas.json', 'r') as f:
+        datas = json.load(f)
+    checkpoints_path = './checkpoints'
+    try:
+        shutil.rmtree(checkpoints_path)
+    except:
+        pass 
+    os.mkdir(checkpoints_path)
+    train_loop(model, datas, checkpoints_path)
+
+
+test_train()
