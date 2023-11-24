@@ -57,7 +57,7 @@ def test_model():
 
 model = None
 
-def test_model_forward(input_ids, labels):
+def test_model_forward(input_ids, labels, training):
     state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
@@ -68,7 +68,11 @@ def test_model_forward(input_ids, labels):
     if model is None:
         model = Transformer_byt5()
         model.load_state_dict(state_dict_new)
+
+    if training:
         model = model.train()  
+    else:
+        model = model.eval()
     # input_ids = torch.tensor([list(str_in.encode("utf-8"))]) + 3  # add 3 for special tokens
     # labels = torch.tensor([list(str_out.encode("utf-8"))]) + 3  # add 3 for special tokens
 
@@ -83,7 +87,7 @@ def test_model_forward(input_ids, labels):
 
 
 
-def test_model_1():
+def test_model_1(training):
     inputs = ["hello world"]
     outputs = ['你好世界']
     batches = [[inputs, outputs]]
@@ -96,10 +100,10 @@ def test_model_1():
             label_ids.append([y + 3 for y in x.encode("utf-8")])  
         input_ids = torch.tensor(input_ids)
         label_ids = torch.tensor(label_ids)
-        test_model_forward(input_ids, label_ids) 
+        test_model_forward(input_ids, label_ids, training) 
 
 # tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
-test_model_1()
+test_model_1(False)
 
 
 def test_model_generate(input_ids, use_cache=False, max_length=200):
@@ -114,7 +118,7 @@ def test_model_generate(input_ids, use_cache=False, max_length=200):
     if model is None:
         model = Transformer_byt5()
         model.load_state_dict(state_dict_new)
-        model = model.eval()
+    model = model.eval()
 
     t0 = time.time()
     n = 1
@@ -156,5 +160,5 @@ def test_generate2(use_cache):
         print(tk.ids2text(ids))
 
 
-# test_generate2(False)
-# test_generate2(True)
+test_generate2(False)
+test_generate2(True)
