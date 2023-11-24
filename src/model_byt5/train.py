@@ -123,6 +123,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
 
     last_t = time.time()
     all_past_steps = 0
+    fs = os.open('./out.log', os.O_RDWR)
     for index_of_epoch in range(n_epoch):
         offset = 0
         steps = 0
@@ -151,7 +152,12 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
                     
                     all_steps = n_epoch * epoch_steps
                     remain_steps = all_steps - all_past_steps
-                    print(f'{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}', 'loss:', loss.tolist(), 'ts', now, 'h', delta_t * remain_steps / 3600)
+                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}, 'loss:', {loss.tolist()}, 'ts', {now}, 'h', {delta_t * remain_steps / 3600}"
+                    print(log)
+                    log = log + '\n'
+                    # fs.write('ww')
+                    os.write(fs, bytes(log, 'utf-8'))
+                    os.fsync(fs)
                     loss = loss / gradient_accumulation_steps
                     loss.backward()
 
@@ -178,3 +184,5 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
                         json.dump(asdict(model.byt5config), f, indent=4) 
                     with open(f"{fold}/train_info.json", "w") as f:
                         json.dump(train_info, f, indent=4)   
+
+    fs.close()                        
