@@ -9,6 +9,12 @@ import time
 from src.utils import print_model_info
 
 model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
+model_config_path = "./test_models/byt5-small/config.json"
+
+config = None
+with open(model_config_path, 'r') as f:
+    config = json.load(f)
+
 
 def test_tokenizer(input):
     tk = Tokenizer_byt5()
@@ -44,7 +50,7 @@ def tokenizer_tests():
 
 def test_model():
     print('--------------------------------')
-    model = Transformer_byt5()
+    model = Transformer_byt5(config=config)
    
     print(model)
     input_ids = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
@@ -65,7 +71,7 @@ def test_model_forward(input_ids, labels, training):
             state_dict_new[hf_model_weight_name_mapping(name)] = tensor_
     global model  
     if model is None:
-        model = Transformer_byt5()
+        model = Transformer_byt5(config=config)
         model.load_state_dict(state_dict_new)
 
     if training:
@@ -110,7 +116,7 @@ def test_model_generate(input_ids, use_cache=False, max_length=200):
     global model        
 
     if model is None:
-        model = Transformer_byt5()
+        model = Transformer_byt5(config=config)
         model.load_state_dict(state_dict_new)
     model = model.eval()
 
@@ -159,5 +165,5 @@ test_model_1(False)
 # test_generate2(True)
 
 
-# model = Transformer_byt5()
+# model = Transformer_byt5(config=config)
 # print_model_info(model)

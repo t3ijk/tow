@@ -28,6 +28,12 @@ class Config_byt5:
     tie_word_embeddings: bool = False
     use_cache: bool = True
     vocab_size: int = 384
+    # hf config
+    _name_or_path: str = ''
+    architectures: str = ''
+    model_type: str = ''
+    tokenizer_class: str = ''
+    transformers_version: str = ''
 
 class AttentionType(Enum):
     ENCODER_ATTENTION = 'encoder_multi_header_attention'
@@ -299,10 +305,10 @@ class PositionalEncoding(nn.Module):
         return values
 
 class Transformer_byt5(nn.Module):
-    def __init__(self, config_={}):
+    def __init__(self, config={}):
         super().__init__()
         global CUR_CONFIG
-        CUR_CONFIG = Config_byt5(**config_)
+        CUR_CONFIG = Config_byt5(**config)
         print(CUR_CONFIG)
         self.shared_embedding = nn.Embedding(
             CUR_CONFIG.vocab_size, CUR_CONFIG.d_model)
