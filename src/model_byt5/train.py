@@ -110,7 +110,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
 
     n_samples = len(datas)
     batch_size = 4
-    n_epoch = 2
+    n_epoch = 20
     steps_for_estimate_loss = 50
     last_estimate_loss = torch.tensor(-1)
     gradient_accumulation_steps = 2
@@ -133,7 +133,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
                     steps += 1
                     if steps % steps_for_estimate_loss == 0:
                         need_estimate_loss = True
-                    print(f'{index_of_epoch}-{steps}/{all_steps}', 'loss:', loss.tolist(), time.time())
+                    print(f'{index_of_epoch/n_epoch}-{steps}/{all_steps}', 'loss:', loss.tolist(), time.time())
                     loss = loss / gradient_accumulation_steps
                     loss.backward()
 
