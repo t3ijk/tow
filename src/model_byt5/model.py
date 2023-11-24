@@ -356,7 +356,8 @@ class Transformer_byt5(nn.Module):
         if CUR_MODEL.use_cache:
             shifted_input_ids = shifted_input_ids[:,-1:]
             CUR_MODEL.mask_for_masked_attention = CUR_MODEL.mask_for_masked_attention[:,:,-1:,:]
-        # 
+        # mask all -100(label pads) to real pad_token 0
+        shifted_input_ids.masked_fill_(shifted_input_ids == -100, 0)
         decoder_hidden_states = self.shared_embedding(shifted_input_ids)
         layer: DecoderLayer
         for i, layer in enumerate(self.decoder):
