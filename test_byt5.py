@@ -7,6 +7,7 @@ import json
 from collections import OrderedDict
 import time
 from src.utils import print_model_info
+from src.model_byt5.train import train_loop
 
 model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
 model_config_path = "./test_models/byt5-small/config.json"
@@ -160,10 +161,15 @@ def test_generate2(use_cache):
 # tokenizer_tests()
 # test_model()
 # tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
-test_model_1(False)
+# test_model_1(False)
 # test_generate2(False)
 # test_generate2(True)
 
 
-# model = Transformer_byt5(config=config)
+model = Transformer_byt5(config=config)
 # print_model_info(model)
+
+with open('./datas/datas.json', 'r') as f:
+    datas = json.load(f)
+
+train_loop(model, datas)

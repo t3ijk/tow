@@ -309,8 +309,8 @@ class Transformer_byt5(nn.Module):
         super().__init__()
         global CUR_MODEL
         CUR_MODEL = self
-        CUR_MODEL.byt5config: Config_byt5 = Config_byt5(**config)
-        print(CUR_MODEL.byt5config)
+        self.byt5config: Config_byt5 = Config_byt5(**config)
+        print(self.byt5config)
         self.shared_embedding = nn.Embedding(
             CUR_MODEL.byt5config.vocab_size, CUR_MODEL.byt5config.d_model)
         self.encoder = nn.ModuleList([EncoderLayer(i) for i in range(CUR_MODEL.byt5config.num_layers)])
