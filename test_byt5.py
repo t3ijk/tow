@@ -6,6 +6,7 @@ import torch
 import json
 from collections import OrderedDict
 import time
+from src.utils import print_model_info
 
 model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
 
@@ -41,8 +42,6 @@ def tokenizer_tests():
     test_tokenizer('你好世界！hello world! \n1 \t !@#$%^&* <<<<extra_id_119>123456')
     test_tokenizer('Life is like a box of chocolates.')
 
-# tokenizer_tests()
-
 def test_model():
     print('--------------------------------')
     model = Transformer_byt5()
@@ -54,9 +53,6 @@ def test_model():
     print(out_infos)
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
     torch.save(model.state_dict(), './test_models/byt5-small/pytorch_model_my.bin')
-
-# test_model()
-
 
 model = None
 
@@ -84,10 +80,9 @@ def test_model_forward(input_ids, labels, training):
     for i in range(n):
         print('model.training', model.training)
         torch.manual_seed(0)
-        out_infos = model(input_ids, labels=labels)
+        _, loss = model(input_ids, labels=labels)
     t1 = time.time()
-    print(out_infos['loss'], 'deltaT', (t1 - t0) / n)
-
+    print(loss, 'deltaT', (t1 - t0) / n)
 
 
 def test_model_1(training):
@@ -104,10 +99,6 @@ def test_model_1(training):
         input_ids = torch.tensor(input_ids)
         label_ids = torch.tensor(label_ids)
         test_model_forward(input_ids, label_ids, training) 
-
-# tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
-test_model_1(False)
-
 
 def test_model_generate(input_ids, use_cache=False, max_length=200):
     state_dict = torch.load(model_weights_path)
@@ -148,11 +139,7 @@ def test_generate1(use_cache):
     for ids in out_ids.tolist():
         print(tk.ids2text(ids))
 
-# test_generate1(False)
-# test_generate1(True)
-# test_generate1(False)
-# test_generate1(True)
-# test_generate1(True)
+
 def test_generate2(use_cache):
     out_ids = test_model_generate(input_ids=torch.tensor([tk.text2ids('hello world!'), tk.text2ids('你好世界')]), use_cache=use_cache, max_length=200)
     """
@@ -163,5 +150,14 @@ def test_generate2(use_cache):
         print(tk.ids2text(ids))
 
 
-test_generate2(False)
-test_generate2(True)
+
+# tokenizer_tests()
+# test_model()
+# tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
+test_model_1(False)
+# test_generate2(False)
+# test_generate2(True)
+
+
+# model = Transformer_byt5()
+# print_model_info(model)

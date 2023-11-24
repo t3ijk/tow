@@ -362,22 +362,18 @@ class Transformer_byt5(nn.Module):
         output_logits = self.linear(decoder_hidden_states) # -> (batch, n, d_dictionary)
         return output_logits
         
-    def forward(self, inputs, labels=None):
+    def forward(self, inputs, labels):
         # encode
         encoder_hidden_states = self.encode(inputs)
         # decode
-        output_logits = self.decode(encoder_hidden_states, labels) 
+        logits = self.decode(encoder_hidden_states, labels) 
         # calculate loss
         loss = None
-        if labels is not None:
-            predicts = output_logits.view(-1, output_logits.size(-1))
-            labels = labels.view(-1)
-            loss = nn.CrossEntropyLoss(ignore_index=-100)(predicts, labels)
-        return {
-            "output_logits": output_logits,
-            "loss": loss
-        }
-    
+        predicts = logits.view(-1, logits.size(-1))
+        labels = labels.view(-1)
+        loss = nn.CrossEntropyLoss(ignore_index=-100)(predicts, labels)
+        return logits, loss
+
     def clean_caches(self):
          layer: DecoderLayer
          for i, layer in enumerate(self.decoder):
