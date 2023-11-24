@@ -202,10 +202,7 @@ class EncoderLayer(nn.Module):
     def forward(self, hidden_states):
         # main and residual hidden_states
         if self.need_input_stack_dropout:
-            print('0 d', torch.var_mean(hidden_states), hidden_states[-1, -1, -10:])
-
             hidden_states = self.input_stack_dropout(hidden_states)
-            print('1 d', torch.var_mean(hidden_states))
 
         # hf
         hidden_states_normalized = self.normal1(hidden_states)
