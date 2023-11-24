@@ -6,6 +6,9 @@ import torch
 import json
 from collections import OrderedDict
 import time
+
+model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
+
 def test_tokenizer(input):
     tk = Tokenizer_byt5()
     print('--------------------------------')
@@ -58,7 +61,7 @@ def test_model():
 model = None
 
 def test_model_forward(input_ids, labels, training):
-    state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
+    state_dict = torch.load(model_weights_path)
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
         new_name = hf_model_weight_name_mapping(name)
@@ -107,7 +110,7 @@ test_model_1(False)
 
 
 def test_model_generate(input_ids, use_cache=False, max_length=200):
-    state_dict = torch.load('./test_models/byt5-small/pytorch_model.bin')
+    state_dict = torch.load(model_weights_path)
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
         new_name = hf_model_weight_name_mapping(name)
