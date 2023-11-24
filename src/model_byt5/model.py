@@ -44,12 +44,12 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, layer_index, type=AttentionType.ENCODER_ATTENTION):
         super().__init__()
         # Linear weight together for all heads
-        self.WQ = nn.Linear(CUR_CONFIG.d_model, CUR_CONFIG.num_heads * CUR_CONFIG.d_kv, bias=False)
-        self.WK = nn.Linear(CUR_CONFIG.d_model, CUR_CONFIG.num_heads * CUR_CONFIG.d_kv, bias=False)
-        self.WV = nn.Linear(CUR_CONFIG.d_model, CUR_CONFIG.num_heads * CUR_CONFIG.d_kv, bias=False)
+        self.WQ = nn.Linear(CUR_MODEL.byt5config.d_model, CUR_MODEL.byt5config.num_heads * CUR_MODEL.byt5config.d_kv, bias=False)
+        self.WK = nn.Linear(CUR_MODEL.byt5config.d_model, CUR_MODEL.byt5config.num_heads * CUR_MODEL.byt5config.d_kv, bias=False)
+        self.WV = nn.Linear(CUR_MODEL.byt5config.d_model, CUR_MODEL.byt5config.num_heads * CUR_MODEL.byt5config.d_kv, bias=False)
 
         # Linear back to d_model
-        self.linear = nn.Linear(CUR_CONFIG.num_heads * CUR_CONFIG.d_kv, CUR_CONFIG.d_model, bias=False)
+        self.linear = nn.Linear(CUR_MODEL.byt5config.num_heads * CUR_MODEL.byt5config.d_kv, CUR_MODEL.byt5config.d_model, bias=False)
         self.need_add_position_encoding = layer_index == 0 and type != AttentionType.DECODER_CROSS_ATTENTION
         if self.need_add_position_encoding:
             self.input_positional_encoding = PositionalEncoding()
@@ -67,9 +67,9 @@ class MultiHeadAttention(nn.Module):
         # 1. map hidden_states to q_heads, -> (batch, sequence_length, num_heads * d_kv)
         # 2. split q_heads to q_head, -> (batch, sequence_length, num_heads, d_kv)
         # 3. permute -> (batch, num_heads, sequence_length, d_kv)
-        self.q = self.WQ(q_sequences).reshape([batch, q_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
-        self.k = self.WK(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
-        self.v = self.WV(kv_sequences).reshape([batch, kv_length, CUR_CONFIG.num_heads, CUR_CONFIG.d_kv]).transpose(1, 2)
+        self.q = self.WQ(q_sequences).reshape([batch, q_length, CUR_MODEL.byt5config.num_heads, CUR_MODEL.byt5config.d_kv]).transpose(1, 2)
+        self.k = self.WK(kv_sequences).reshape([batch, kv_length, CUR_MODEL.byt5config.num_heads, CUR_MODEL.byt5config.d_kv]).transpose(1, 2)
+        self.v = self.WV(kv_sequences).reshape([batch, kv_length, CUR_MODEL.byt5config.num_heads, CUR_MODEL.byt5config.d_kv]).transpose(1, 2)
         if self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
             cached_k = self.cached_kv_hidden_states[0]
             k = torch.cat((cached_k, self.k), 2)
@@ -109,14 +109,14 @@ class MultiHeadAttention(nn.Module):
         if mask is not None:
                 logits = logits + mask
         # no scaled, according to the original paper ?
-        # logits = logits / (1.0 / math.sqrt(CUR_CONFIG.d_kv))
+        # logits = logits / (1.0 / math.sqrt(CUR_MODEL.byt5config.d_kv))
         # (batch, num_heads, query_length, key_length)
         attention_weights = nn.functional.softmax(logits.float(), dim=-1).type_as(
             logits
         )
 
         attention_weights = nn.functional.dropout(
-            attention_weights, p=CUR_CONFIG.dropout_rate, training=self.training
+            attention_weights, p=CUR_MODEL.byt5config.dropout_rate, training=self.training
         )  
         # new values for the queries, (batch, num_heads, query_length, d_kv)
         if CUR_MODEL.use_cache and self.cached_kv_hidden_states is not None and self.attentionType == AttentionType.DECODER_MASKED_ATTENTION:
@@ -128,7 +128,7 @@ class MultiHeadAttention(nn.Module):
             at_outputs = torch.matmul(attention_weights, self.v)
 
         # concat heads, (batch, query_length, num_heads*d_kv)
-        at_outputs = at_outputs.transpose(2, 1).reshape([batch, q_length, CUR_CONFIG.d_kv * CUR_CONFIG.num_heads])
+        at_outputs = at_outputs.transpose(2, 1).reshape([batch, q_length, CUR_MODEL.byt5config.d_kv * CUR_MODEL.byt5config.num_heads])
         # project back to d_model, (batch, query_length, d_model)
         at_outputs = self.linear(at_outputs)
         # print('at_outputs', torch.var_mean(at_outputs), at_outputs.shape)
@@ -142,8 +142,8 @@ class LayerNormal(nn.Module):
         super().__init__()
 
         # learnable per-element affine parameters initialized to ones
-        self.weight = nn.Parameter(torch.ones(CUR_CONFIG.d_model))
-        self.variance_epsilon = CUR_CONFIG.layer_norm_epsilon
+        self.weight = nn.Parameter(torch.ones(CUR_MODEL.byt5config.d_model))
+        self.variance_epsilon = CUR_MODEL.byt5config.layer_norm_epsilon
         nn.LayerNorm
 
     def forward(self, hidden_states):
@@ -170,10 +170,10 @@ class FeedForward(nn.Module):
     # gated GeLU, ref: hf transformers   
     def __init__(self):
         super().__init__()
-        self.wi_0 = nn.Linear(CUR_CONFIG.d_model, CUR_CONFIG.d_ff, bias=False)
-        self.wi_1 = nn.Linear(CUR_CONFIG.d_model, CUR_CONFIG.d_ff, bias=False)
-        self.wo = nn.Linear(CUR_CONFIG.d_ff, CUR_CONFIG.d_model, bias=False)
-        self.dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
+        self.wi_0 = nn.Linear(CUR_MODEL.byt5config.d_model, CUR_MODEL.byt5config.d_ff, bias=False)
+        self.wi_1 = nn.Linear(CUR_MODEL.byt5config.d_model, CUR_MODEL.byt5config.d_ff, bias=False)
+        self.wo = nn.Linear(CUR_MODEL.byt5config.d_ff, CUR_MODEL.byt5config.d_model, bias=False)
+        self.dropout = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
         self.act = NewGELUActivation()
 
     def forward(self, hidden_states):
@@ -196,13 +196,13 @@ class EncoderLayer(nn.Module):
         self.need_output_stack_dropout = False
         if layer_index == 0:
             self.need_input_stack_dropout = True
-            self.input_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
+            self.input_stack_dropout = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
         
-        # if layer_index == CUR_CONFIG.num_layers:
+        # if layer_index == CUR_MODEL.byt5config.num_layers:
         #     self.need_output_stack_dropout = True
-        #     self.output_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate) 
-        self.dropout1 = nn.Dropout(CUR_CONFIG.dropout_rate)
-        self.dropout2 = nn.Dropout(CUR_CONFIG.dropout_rate)
+        #     self.output_stack_dropout = nn.Dropout(CUR_MODEL.byt5config.dropout_rate) 
+        self.dropout1 = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
+        self.dropout2 = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
         
 
     def forward(self, hidden_states):
@@ -239,15 +239,15 @@ class DecoderLayer(nn.Module):
         self.need_output_stack_dropout = False
         if layer_index == 0:
             self.need_input_stack_dropout = True
-            self.input_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
+            self.input_stack_dropout = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
         
-        # if layer_index == CUR_CONFIG.num_decoder_layers:
+        # if layer_index == CUR_MODEL.byt5config.num_decoder_layers:
         #     self.need_output_stack_dropout = True
-        #     self.output_stack_dropout = nn.Dropout(CUR_CONFIG.dropout_rate)
+        #     self.output_stack_dropout = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
         
-        self.dropout1 = nn.Dropout(CUR_CONFIG.dropout_rate)
-        self.dropout2 = nn.Dropout(CUR_CONFIG.dropout_rate)
-        self.dropout3 = nn.Dropout(CUR_CONFIG.dropout_rate)
+        self.dropout1 = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
+        self.dropout2 = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
+        self.dropout3 = nn.Dropout(CUR_MODEL.byt5config.dropout_rate)
 
     def forward(self, hidden_states, encoder_outs):
         # main and residual hidden_states
@@ -273,7 +273,7 @@ class PositionalEncoding(nn.Module):
     def __init__(self):
         super().__init__()
         self.relative_attention_bias = nn.Embedding(
-            CUR_CONFIG.relative_attention_num_buckets, CUR_CONFIG.num_heads
+            CUR_MODEL.byt5config.relative_attention_num_buckets, CUR_MODEL.byt5config.num_heads
         )
 
     def forward(self, query_length, key_length, device=None, bidirectional=True):
@@ -291,8 +291,8 @@ class PositionalEncoding(nn.Module):
         relative_position_bucket = _relative_position_bucket(
             relative_position,  # shape (query_length, key_length)
             bidirectional=bidirectional,
-            num_buckets=CUR_CONFIG.relative_attention_num_buckets,
-            max_distance=CUR_CONFIG.relative_attention_max_distance,
+            num_buckets=CUR_MODEL.byt5config.relative_attention_num_buckets,
+            max_distance=CUR_MODEL.byt5config.relative_attention_max_distance,
         )
 
         values = self.relative_attention_bias(
@@ -307,22 +307,21 @@ class PositionalEncoding(nn.Module):
 class Transformer_byt5(nn.Module):
     def __init__(self, config={}):
         super().__init__()
-        global CUR_CONFIG
-        CUR_CONFIG = Config_byt5(**config)
-        print(CUR_CONFIG)
+        global CUR_MODEL
+        CUR_MODEL = self
+        CUR_MODEL.byt5config: Config_byt5 = Config_byt5(**config)
+        print(CUR_MODEL.byt5config)
         self.shared_embedding = nn.Embedding(
-            CUR_CONFIG.vocab_size, CUR_CONFIG.d_model)
-        self.encoder = nn.ModuleList([EncoderLayer(i) for i in range(CUR_CONFIG.num_layers)])
+            CUR_MODEL.byt5config.vocab_size, CUR_MODEL.byt5config.d_model)
+        self.encoder = nn.ModuleList([EncoderLayer(i) for i in range(CUR_MODEL.byt5config.num_layers)])
         self.encoder_final_layer_norm = LayerNormal()
-        self.decoder = nn.ModuleList([DecoderLayer(i) for i in range(CUR_CONFIG.num_decoder_layers)])
+        self.decoder = nn.ModuleList([DecoderLayer(i) for i in range(CUR_MODEL.byt5config.num_decoder_layers)])
         self.decoder_final_layer_norm = LayerNormal()
         self.linear = nn.Linear(
-            CUR_CONFIG.d_model, CUR_CONFIG.vocab_size, bias=False)
+            CUR_MODEL.byt5config.d_model, CUR_MODEL.byt5config.vocab_size, bias=False)
         
         self.mask_for_masked_attention = None
         self.use_cache = False
-        global CUR_MODEL
-        CUR_MODEL = self
 
     def get_attention_mask(self, seq_length):
         seq_ids = torch.arange(seq_length)
@@ -416,5 +415,4 @@ class Transformer_byt5(nn.Module):
         return last_outputs
 
 # global 
-CUR_CONFIG: Config_byt5 = None
 CUR_MODEL: Transformer_byt5 = None
