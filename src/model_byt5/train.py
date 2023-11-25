@@ -151,8 +151,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                     all_steps = n_epoch * epoch_steps
                     remain_steps = all_steps - all_past_steps
                     progress = "{:.4f}".format(all_past_steps/all_steps) 
-                    datenow = datetime.datetime.utcnow()
-                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {datenow}, 'h', {delta_t * remain_steps / 3600}"
+                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'h', {delta_t * remain_steps / 3600}"
                     print(log)
                     log = log + '\n'
                     os.write(fd, bytes(log, 'utf-8'))
@@ -167,8 +166,11 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                 if need_estimate_loss:
                     need_estimate_loss = False
                     last_estimate_loss = estimate_loss(model)
-                    print('estimate_loss: ', last_estimate_loss)
-
+                    log = f"'last_estimate_loss', {last_estimate_loss.tolist()}, 'ts', {time.time()}"
+                    print(log)
+                    log = log + '\n'
+                    os.write(fd, bytes(log, 'utf-8'))
+                    os.fsync(fd)
                     train_info = {
                         'model_args': '',
                         'iter_num': f"{index_of_epoch}-{steps}",
