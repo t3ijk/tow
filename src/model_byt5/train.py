@@ -53,14 +53,14 @@ def estimate_loss(model):
     return loss
 
 
-def get_batch(size, datas, offset):
+def get_batch(size, datas, sample_offset):
     inputs = []
     labels = []
 
     max_in_ids = 0
     max_la_ids = 0
 
-    for data in datas[offset:offset+size]:
+    for data in datas[sample_offset:sample_offset+size]:
         in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 258]
         la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")]]
         if len(in_ids) > max_in_ids:
@@ -118,25 +118,29 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
     all_past_steps = 0
     fd = os.open('./out.log', os.O_RDWR)
     for index_of_epoch in range(n_epoch):
-        offset = 0
+        sample_offset = 0
         steps = 0
         epoch_steps = math.floor(n_samples / batch_size)
         
-        while n_samples - offset > batch_size * gradient_accumulation_steps:
+        while n_samples - sample_offset > batch_size * gradient_accumulation_steps:
                 
                 need_estimate_loss = False
                 for _ in range(gradient_accumulation_steps):
-                    inputs, labels = get_batch(batch_size, datas, offset)
+                    inputs, labels = get_batch(batch_size, datas, sample_offset)
                     input_ids = torch.tensor(inputs)
                     label_ids = torch.tensor(labels)
 
-                    # print(input_ids, label_ids)
+                    # model forward
                     _, loss = model(input_ids, label_ids)
-                    offset += batch_size
-                    steps += 1
-                    all_past_steps += 1
+
+                    # use real steps to flag need_estimate_loss
                     if steps % steps_for_estimate_loss == 0:
                         need_estimate_loss = True
+
+                    # update steps
+                    sample_offset += batch_size
+                    steps += 1
+                    all_past_steps += 1    
 
                     now = time.time()
 
