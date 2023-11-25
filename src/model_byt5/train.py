@@ -101,10 +101,10 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
             'model_args': '',
             'iter_num': f"{index_of_epoch}-{steps}",
             'best_val_loss': cur_estimate_loss.tolist(),
+            'data': f"{datetime.datetime.utcnow()}"
         }
         name = 'minimal_loss' if  is_minimal_loss else 'last_loss'
         fold = f"{checkpoints_path}/{name}"
-        os.mkdir(fold)
         delete_files_in_directory(fold) 
         torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
         with open(f"{fold}/config.json", "w") as f:

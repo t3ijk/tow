@@ -13,7 +13,13 @@ def print_model_info(model):
 
 
 def delete_files_in_directory(directory_path):
-   try:
+    try:
+     os.mkdir(directory_path)
+    except OSError:
+     print("Error occurred while mkdir path.")
+
+    try:
+     os.mkdir(directory_path)
      files = os.listdir(directory_path)
      for file in files:
         file_path = os.path.join(directory_path, file)
@@ -21,7 +27,6 @@ def delete_files_in_directory(directory_path):
             os.remove(file_path)
         else:
             shutil.rmtree(file_path)
-
      print(f"{directory_path} All files deleted successfully.")
-   except OSError:
+    except OSError:
      print("Error occurred while deleting files.")
