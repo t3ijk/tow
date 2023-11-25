@@ -91,7 +91,7 @@ def get_batch(size, datas, offset):
 
 
 
-def train_loop(model: Transformer_byt5, datas, checkpoints_path):
+def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch):
 
     # adamw optimizer
     learning_rate = 6e-4 # max learning rate
@@ -109,13 +109,11 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
     device_type  = 'cpu'
     optimizer = configure_optimizers(model, weight_decay, learning_rate, (beta1, beta2), device_type)
 
-    index_of_iter = 0
-    index_of_batch = 0
     index_of_epoch = 0
 
     n_samples = len(datas)
     batch_size = 4
-    n_epoch = 20
+    # n_epoch = 20
     steps_for_estimate_loss = 50
     last_estimate_loss = torch.tensor(-1)
     gradient_accumulation_steps = 2
@@ -123,7 +121,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
 
     last_t = time.time()
     all_past_steps = 0
-    fs = os.open('./out.log', os.O_RDWR)
+    fd = os.open('./out.log', os.O_RDWR)
     for index_of_epoch in range(n_epoch):
         offset = 0
         steps = 0
@@ -156,8 +154,8 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
                     print(log)
                     log = log + '\n'
                     # fs.write('ww')
-                    os.write(fs, bytes(log, 'utf-8'))
-                    os.fsync(fs)
+                    os.write(fd, bytes(log, 'utf-8'))
+                    os.fsync(fd)
                     loss = loss / gradient_accumulation_steps
                     loss.backward()
 
@@ -185,4 +183,4 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path):
                     with open(f"{fold}/train_info.json", "w") as f:
                         json.dump(train_info, f, indent=4)   
 
-    os.close('fd')                        
+    os.close(fd)                        

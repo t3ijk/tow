@@ -171,13 +171,43 @@ def test_generate2(use_cache):
 
 
 def test_train():
-    model = Transformer_byt5(config=config)
+    state_dict = torch.load(model_weights_path)
+    state_dict_new = OrderedDict()
+    for name, tensor_ in state_dict.items():
+        new_name = hf_model_weight_name_mapping(name)
+        if new_name:
+            state_dict_new[hf_model_weight_name_mapping(name)] = tensor_
+    global model        
+
+    if model is None:
+        model = Transformer_byt5(config=config)
+        model.load_state_dict(state_dict_new)
+    model = model.train()
     # print_model_info(model)
 
     with open('./datas/datas.json', 'r') as f:
         datas = json.load(f)
     checkpoints_path = './checkpoints'
     delete_files_in_directory(checkpoints_path)
-    train_loop(model, datas, checkpoints_path)
+    n_epoch = 2
+    train_loop(model, datas, checkpoints_path, n_epoch)
 
 test_train()
+
+
+def test_checkpoint(path, prompts, max_length=200):
+    input_ids=torch.tensor([[*tk.text2ids(prompts), 258]])
+    state_dict = torch.load(path)
+    global model
+    if model is None:
+        model = Transformer_byt5(config=config)
+        model.load_state_dict(state_dict)
+    model = model.eval()
+
+    t0 = time.time()
+    out_ids = model.generate(input_ids, max_length=max_length, use_cache=True)
+    print('deltaT', (time.time() - t0))
+    print(tk.ids2text(out_ids.tolist()[0]))
+    
+
+# test_checkpoint('./checkpoints-saved/19-150/pytorch_model.bin', 'Go to definition')
