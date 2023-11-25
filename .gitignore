@@ -167,6 +167,4 @@ temp
 
 datas
 
-checkpoints
-
-checkpoints-saved
+checkpoints*

@@ -166,10 +166,6 @@ def test_generate2(use_cache):
 # test_generate2(False)
 # test_generate2(True)
 
-
-
-
-
 def test_train():
     state_dict = torch.load(model_weights_path)
     state_dict_new = OrderedDict()
@@ -189,10 +185,11 @@ def test_train():
         datas = json.load(f)
     checkpoints_path = './checkpoints'
     delete_files_in_directory(checkpoints_path)
-    n_epoch = 2
-    train_loop(model, datas, checkpoints_path, n_epoch)
+    n_epoch = 20
+    batch_size = 4
+    train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
 
-test_train()
+# test_train()
 
 
 def test_checkpoint(path, prompts, max_length=200):
@@ -207,7 +204,8 @@ def test_checkpoint(path, prompts, max_length=200):
     t0 = time.time()
     out_ids = model.generate(input_ids, max_length=max_length, use_cache=True)
     print('deltaT', (time.time() - t0))
-    print(tk.ids2text(out_ids.tolist()[0]))
-    
+    ids = out_ids.tolist()[0]
+    print(ids)
+    print(tk.ids2text(ids))
 
-# test_checkpoint('./checkpoints-saved/19-150/pytorch_model.bin', 'Go to definition')
+# test_checkpoint('./checkpoints-saved/19-150/pytorch_model.bin', 'Keypoint detection for gestures')

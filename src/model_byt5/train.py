@@ -9,6 +9,7 @@ import shutil
 from src.utils import delete_files_in_directory
 import math
 import time
+import datetime
 # https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/model.py#L263
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
     # start with all of the candidate parameters
@@ -91,7 +92,7 @@ def get_batch(size, datas, offset):
 
 
 
-def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch):
+def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_size):
 
     # adamw optimizer
     learning_rate = 6e-4 # max learning rate
@@ -112,7 +113,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch):
     index_of_epoch = 0
 
     n_samples = len(datas)
-    batch_size = 4
+    # batch_size = 4
     # n_epoch = 20
     steps_for_estimate_loss = 50
     last_estimate_loss = torch.tensor(-1)
@@ -150,7 +151,8 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch):
                     
                     all_steps = n_epoch * epoch_steps
                     remain_steps = all_steps - all_past_steps
-                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}, 'loss:', {loss.tolist()}, 'ts', {now}, 'h', {delta_t * remain_steps / 3600}"
+                    datenow = datetime.datetime.utcnow()
+                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}, 'loss:', {loss.tolist()}, 'ts', {datenow}, 'h', {delta_t * remain_steps / 3600}"
                     print(log)
                     log = log + '\n'
                     # fs.write('ww')
