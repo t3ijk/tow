@@ -44,7 +44,7 @@ def estimate_loss(model):
     out = {}
     model.eval()
     inputs = [[y + 3 for y in 'This is training a LLM model! '.encode("utf-8")]]
-    outputs = [[258, *[y + 3 for y in '这是训练LLM模型！'.encode("utf-8")]]]
+    outputs = [[258, *[y + 3 for y in '这是训练LLM模型！'.encode("utf-8")], 1]]
     # batches = [[inputs, outputs]]
     input_ids = torch.tensor(inputs)
     label_ids = torch.tensor(outputs)
@@ -85,12 +85,6 @@ def get_batch(size, datas, offset):
         labels_with_pads.append(l) 
 
     return inputs_with_pads, labels_with_pads   
-
-# def log(index_of_epoch=0, n_epoch=1, steps=0, epoch_steps=1, remain_steps=0, all_steps=1, loss=0, ts):
-
-        # print(f'{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}', 'loss:', loss.tolist(), 'ts', delta_t, 'h', delta_t * remain_steps / 3600)
-
-
 
 def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_size):
 
@@ -151,8 +145,9 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                     
                     all_steps = n_epoch * epoch_steps
                     remain_steps = all_steps - all_past_steps
+                    progress = "{:.4f}".format(all_past_steps/all_steps) 
                     datenow = datetime.datetime.utcnow()
-                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{remain_steps}/{all_steps}, 'loss:', {loss.tolist()}, 'ts', {datenow}, 'h', {delta_t * remain_steps / 3600}"
+                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {datenow}, 'h', {delta_t * remain_steps / 3600}"
                     print(log)
                     log = log + '\n'
                     # fs.write('ww')
