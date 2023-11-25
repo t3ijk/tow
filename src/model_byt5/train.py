@@ -96,6 +96,22 @@ def get_batch(size, datas, sample_offset):
 
     return inputs_with_pads, labels_with_pads   
 
+def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, is_minimal_loss):
+        train_info = {
+            'model_args': '',
+            'iter_num': f"{index_of_epoch}-{steps}",
+            'best_val_loss': cur_estimate_loss.tolist(),
+        }
+        name = 'minimal_loss' if  is_minimal_loss else 'last_loss'
+        fold = f"{checkpoints_path}/{name}"
+        os.mkdir(fold)
+        delete_files_in_directory(fold) 
+        torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
+        with open(f"{fold}/config.json", "w") as f:
+            json.dump(asdict(model.byt5config), f, indent=4) 
+        with open(f"{fold}/train_info.json", "w") as f:
+            json.dump(train_info, f, indent=4)   
+
 def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_size):
 
     # adamw optimizer
@@ -120,7 +136,8 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
     # batch_size = 4
     # n_epoch = 20
     steps_for_estimate_loss = 50
-    last_estimate_loss = torch.tensor(-1)
+    cur_estimate_loss = torch.tensor(-1)
+    min_estimate_loss = torch.tensor(999)
     gradient_accumulation_steps = 2
 
 
@@ -174,25 +191,17 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                 optimizer.zero_grad(set_to_none=True)
                 if need_estimate_loss:
                     need_estimate_loss = False
-                    last_estimate_loss = estimate_loss(model)
-                    log = f"'last_estimate_loss', {last_estimate_loss.tolist()}, 'ts', {time.time()}"
+                    cur_estimate_loss = estimate_loss(model)
+                    log = f"'cur_estimate_loss', {cur_estimate_loss.tolist()}, 'ts', {time.time()}"
                     print(log)
                     log = log + '\n'
                     os.write(fd, bytes(log, 'utf-8'))
                     os.fsync(fd)
-                    train_info = {
-                        'model_args': '',
-                        'iter_num': f"{index_of_epoch}-{steps}",
-                        'best_val_loss': last_estimate_loss.tolist(),
-                    }
 
-                    delete_files_in_directory(checkpoints_path)
-                    fold = f"{checkpoints_path}/{index_of_epoch}-{steps}/"
-                    os.mkdir(fold) 
-                    torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
-                    with open(f"{fold}/config.json", "w") as f:
-                        json.dump(asdict(model.byt5config), f, indent=4) 
-                    with open(f"{fold}/train_info.json", "w") as f:
-                        json.dump(train_info, f, indent=4)   
-
+                    is_minimal_loss = False
+                    if cur_estimate_loss < min_estimate_loss:
+                        min_estimate_loss = cur_estimate_loss
+                        is_minimal_loss = True
+                    save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, is_minimal_loss)
+       
     os.close(fd)                        
