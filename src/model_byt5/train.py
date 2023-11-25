@@ -10,7 +10,8 @@ from src.utils import delete_files_in_directory
 import math
 import time
 import datetime
-# https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/model.py#L263
+
+# ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
     # start with all of the candidate parameters
     param_dict = {pn: p for pn, p in model.named_parameters()}
@@ -154,7 +155,6 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                     log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {datenow}, 'h', {delta_t * remain_steps / 3600}"
                     print(log)
                     log = log + '\n'
-                    # fs.write('ww')
                     os.write(fd, bytes(log, 'utf-8'))
                     os.fsync(fd)
                     loss = loss / gradient_accumulation_steps
