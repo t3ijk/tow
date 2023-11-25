@@ -10,6 +10,7 @@ from src.utils import delete_files_in_directory
 import math
 import time
 import datetime
+from src.model_byt5.tokenizer import Tokenizer_byt5
 
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
@@ -62,8 +63,8 @@ def get_batch(size, datas, sample_offset):
     max_la_ids = 0
 
     for data in datas[sample_offset:sample_offset+size]:
-        in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 258]
-        la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")]]
+        in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 1, 258]
+        la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")], 1]
         if len(in_ids) > max_in_ids:
             max_in_ids = len(in_ids)
         if len(la_ids) > max_la_ids:
@@ -84,6 +85,14 @@ def get_batch(size, datas, sample_offset):
         n_pads = max_la_ids - len(l)
         l = [*l, *[-100 for _ in range(n_pads)]]
         labels_with_pads.append(l) 
+
+
+    # print(inputs_with_pads)
+    # print(labels_with_pads)  
+    # tk  = Tokenizer_byt5()
+    # for i in range(len(labels_with_pads)):
+    #     print(tk.ids2text(inputs_with_pads[i]), tk.ids2text(labels_with_pads[i]))
+
 
     return inputs_with_pads, labels_with_pads   
 

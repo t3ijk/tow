@@ -208,4 +208,4 @@ def test_checkpoint(path, prompts, max_length=200):
     print(ids)
     print(tk.ids2text(ids))
 
-# test_checkpoint('./checkpoints-saved/19-150/pytorch_model.bin', 'Keypoint detection for gestures')
+# test_checkpoint('./checkpoints-saved2/19-152/pytorch_model.bin', 'Posture Classification')
