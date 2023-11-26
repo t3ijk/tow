@@ -170,7 +170,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
     last_t = time.time()
     all_past_steps = 0
     now_iso = datetime.datetime.utcnow().isoformat()
-    out_log_path = f'out-{re.sub(r"[^0-9]", now_iso)}.log'
+    out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
     os.mkdir(out_log_path)
     fd = os.open(out_log_path, os.O_RDWR)
     for index_of_epoch in range(train_config.n_epoch):
