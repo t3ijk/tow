@@ -11,6 +11,7 @@ import math
 import time
 import datetime
 from src.model_byt5.tokenizer import Tokenizer_byt5
+from dataclasses import dataclass, asdict
 
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
@@ -96,7 +97,7 @@ def get_batch(size, datas, sample_offset):
 
     return inputs_with_pads, labels_with_pads   
 
-def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, is_minimal_loss):
+def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, train_config, is_minimal_loss):
         train_info = {
             'model_args': '',
             'iter_num': f"{index_of_epoch}-{steps}",
@@ -108,21 +109,27 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
         delete_files_in_directory(fold) 
         torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
         with open(f"{fold}/config.json", "w") as f:
-            json.dump(asdict(model.byt5config), f, indent=4) 
+            json.dump(asdict(model.byt5config), f, indent=4)
+        with open(f"{fold}/train_config.json", "w") as f:
+            json.dump(asdict(train_config), f, indent=4)     
         with open(f"{fold}/train_info.json", "w") as f:
             json.dump(train_info, f, indent=4)   
 
+def log_write(fd, log):
+    log = log + '\n'
+    os.write(fd, bytes(log, 'utf-8'))
+    os.fsync(fd)
 
-def safe_check(model, checkpoints_path):
+
+def safe_check(model, checkpoints_path, train_config):
+    print(train_config)
     print(model.byt5config)
     dir = os.listdir(checkpoints_path)
     if len(dir) != 0:
         raise Exception(f"The Directory Is Not Empty. {checkpoints_path}")
-
-
-def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_size):
-    safe_check(model, checkpoints_path)
-
+    
+@dataclass
+class Train_config:
     # adamw optimizer
     learning_rate = 6e-4 # max learning rate
     max_iters = 600000 # total number of training iterations
@@ -137,32 +144,42 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
     min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
     device_type  = 'cpu'
-    optimizer = configure_optimizers(model, weight_decay, learning_rate, (beta1, beta2), device_type)
-
-    index_of_epoch = 0
-
-    n_samples = len(datas)
-    # batch_size = 4
-    # n_epoch = 20
+    # optimizer = configure_optimizers(model, weight_decay, learning_rate, (beta1, beta2), device_type)
+    n_samples = 0
+    batch_size = 0
+    n_epoch = 0
     steps_for_estimate_loss = 50
-    cur_estimate_loss = torch.tensor(-1)
-    min_estimate_loss = torch.tensor(999)
     gradient_accumulation_steps = 2
 
+def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch_size_):
+    train_config = Train_config()
+    train_config.n_samples = len(datas)
+    train_config.batch_size = batch_size_
+    train_config.n_epoch = n_epoch_
+
+    safe_check(model, checkpoints_path, train_config)
+
+    cur_estimate_loss = torch.tensor(-1)
+    min_estimate_loss = torch.tensor(999)
+    optimizer = configure_optimizers(model,
+                                     train_config.weight_decay,
+                                     train_config.learning_rate,
+                                     (train_config.beta1, train_config.beta2),
+                                     train_config.device_type)
 
     last_t = time.time()
     all_past_steps = 0
     fd = os.open('./out.log', os.O_RDWR)
-    for index_of_epoch in range(n_epoch):
+    for index_of_epoch in range(train_config.n_epoch):
         sample_offset = 0
         steps = 0
-        epoch_steps = math.floor(n_samples / batch_size)
+        epoch_steps = math.floor(train_config.n_samples / train_config.batch_size)
         
-        while n_samples - sample_offset > batch_size * gradient_accumulation_steps:
+        while train_config.n_samples - sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
                 
                 need_estimate_loss = False
-                for _ in range(gradient_accumulation_steps):
-                    inputs, labels = get_batch(batch_size, datas, sample_offset)
+                for _ in range(train_config.gradient_accumulation_steps):
+                    inputs, labels = get_batch(train_config.batch_size, datas, sample_offset)
                     input_ids = torch.tensor(inputs)
                     label_ids = torch.tensor(labels)
 
@@ -170,11 +187,11 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                     _, loss = model(input_ids, label_ids)
 
                     # use real steps to flag need_estimate_loss
-                    if steps % steps_for_estimate_loss == 0:
+                    if steps % train_config.steps_for_estimate_loss == 0:
                         need_estimate_loss = True
 
                     # update steps
-                    sample_offset += batch_size
+                    sample_offset += train_config.batch_size
                     steps += 1
                     all_past_steps += 1    
 
@@ -183,19 +200,17 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                     delta_t = now - last_t
                     last_t = now
                     
-                    all_steps = n_epoch * epoch_steps
+                    all_steps = train_config.n_epoch * epoch_steps
                     remain_steps = all_steps - all_past_steps
                     progress = "{:.4f}".format(all_past_steps/all_steps) 
-                    log = f"{index_of_epoch}/{n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'h', {delta_t * remain_steps / 3600}"
+                    log = f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'h', {delta_t * remain_steps / 3600}"
                     print(log)
-                    log = log + '\n'
-                    os.write(fd, bytes(log, 'utf-8'))
-                    os.fsync(fd)
-                    loss = loss / gradient_accumulation_steps
+                    log_write(fd, log+'\n')
+                    loss = loss / train_config.gradient_accumulation_steps
                     loss.backward()
 
-                if grad_clip != 0.0:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                if train_config.grad_clip != 0.0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
                 if need_estimate_loss:
@@ -203,14 +218,11 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_
                     cur_estimate_loss = estimate_loss(model)
                     log = f"'cur_estimate_loss', {cur_estimate_loss.tolist()}, 'ts', {time.time()}"
                     print(log)
-                    log = log + '\n'
-                    os.write(fd, bytes(log, 'utf-8'))
-                    os.fsync(fd)
-
+                    log_write(fd, log+'\n')
                     is_minimal_loss = False
                     if cur_estimate_loss < min_estimate_loss:
                         min_estimate_loss = cur_estimate_loss
                         is_minimal_loss = True
-                    save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, is_minimal_loss)
+                    save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, train_config, is_minimal_loss)
        
     os.close(fd)                        
