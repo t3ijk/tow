@@ -116,7 +116,6 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
             json.dump(train_info, f, indent=4)   
 
 def log_write(fd, log):
-    log = log + '\n'
     os.write(fd, bytes(log, 'utf-8'))
     os.fsync(fd)
 
