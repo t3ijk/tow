@@ -12,7 +12,7 @@ import time
 import datetime
 from src.model_byt5.tokenizer import Tokenizer_byt5
 from dataclasses import dataclass, asdict
-
+import re
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
     # start with all of the candidate parameters
@@ -102,7 +102,7 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
             'model_args': '',
             'iter_num': f"{index_of_epoch}-{steps}",
             'best_val_loss': cur_estimate_loss.tolist(),
-            'data': f"{datetime.datetime.utcnow()}"
+            'data': f"{datetime.datetime.utcnow().isoformat()}"
         }
         name = 'minimal_loss' if  is_minimal_loss else 'last_loss'
         fold = f"{checkpoints_path}/{name}"
@@ -169,7 +169,10 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
 
     last_t = time.time()
     all_past_steps = 0
-    fd = os.open('./out.log', os.O_RDWR)
+    now_iso = datetime.datetime.utcnow().isoformat()
+    out_log_path = f'out-{re.sub(r"[^0-9]", now_iso)}.log'
+    os.mkdir(out_log_path)
+    fd = os.open(out_log_path, os.O_RDWR)
     for index_of_epoch in range(train_config.n_epoch):
         sample_offset = 0
         steps = 0
