@@ -184,7 +184,7 @@ def test_train():
     with open('./datas/datas.json', 'r') as f:
         datas = json.load(f)
     checkpoints_path = './checkpoints'
-    delete_files_in_directory(checkpoints_path)
+    # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
     batch_size = 4
     train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
@@ -195,17 +195,39 @@ def test_train():
 def test_checkpoint(path, prompts, max_length=200):
     input_ids=torch.tensor([[*tk.text2ids(prompts), 258]])
     state_dict = torch.load(path)
-    global model
-    if model is None:
-        model = Transformer_byt5(config=config)
-        model.load_state_dict(state_dict)
+    model = Transformer_byt5(config=config)
+    model.load_state_dict(state_dict)
     model = model.eval()
-
     t0 = time.time()
     out_ids = model.generate(input_ids, max_length=max_length, use_cache=True)
-    print('deltaT', (time.time() - t0))
+    # print('deltaT', (time.time() - t0))
     ids = out_ids.tolist()[0]
-    print(ids)
-    print(tk.ids2text(ids))
+    # print(ids)
+    print(prompts, ':', tk.ids2text(ids))
 
-test_checkpoint('./checkpoints-saved2/19-152/pytorch_model.bin', 'Posture Classification')
+# test_checkpoint('./checkpoints-saved3/last_loss/pytorch_model.bin', 'hello world!')
+# test_checkpoint('./checkpoints-saved3/last_loss/pytorch_model.bin', 'one sentence speech recognition')
+# test_checkpoint('./checkpoints-saved3/last_loss/pytorch_model.bin', 'Audio classification')
+
+
+# test_checkpoint('./checkpoints-saved3/minimal_loss/pytorch_model.bin', 'hello world!')
+# test_checkpoint('./checkpoints-saved3/minimal_loss/pytorch_model.bin', 'Posture classification training and model usage')
+
+
+def test_eval():
+    prompts = ['hello world!', 
+                   'one sentence speech recognition', 
+                   'Audio classification',
+                   'Posture classification training and model usage']
+
+    
+
+    for prompt in prompts:
+        test_checkpoint('./checkpoints-saved3/last_loss/pytorch_model.bin', prompt)
+
+    for prompt in prompts:
+        test_checkpoint('./checkpoints-saved3/minimal_loss/pytorch_model.bin', prompt)    
+        
+
+
+test_eval()
