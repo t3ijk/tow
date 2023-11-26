@@ -131,25 +131,25 @@ def safe_check(model, checkpoints_path, train_config):
 @dataclass
 class Train_config:
     # adamw optimizer
-    learning_rate = 6e-4 # max learning rate
-    max_iters = 600000 # total number of training iterations
-    weight_decay = 1e-1
-    beta1 = 0.9
-    beta2 = 0.95
-    grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
+    learning_rate: float = 6e-4 # max learning rate
+    max_iters: int = 600000 # total number of training iterations
+    weight_decay: float = 1e-1
+    beta1: float = 0.9
+    beta2: float = 0.95
+    grad_clip: float = 1.0 # clip gradients at this value, or disable if == 0.0
     # learning rate decay settings
-    decay_lr = True # whether to decay the learning rate
+    decay_lr: bool = True # whether to decay the learning rate
     warmup_iters = 2000 # how many steps to warm up for
     lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
-    min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
+    min_lr: float = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
-    device_type  = 'cpu'
+    device_type: str  = 'cpu'
     # optimizer = configure_optimizers(model, weight_decay, learning_rate, (beta1, beta2), device_type)
-    n_samples = 0
-    batch_size = 0
-    n_epoch = 0
-    steps_for_estimate_loss = 50
-    gradient_accumulation_steps = 2
+    n_samples: int = 0
+    batch_size: int = 0
+    n_epoch: int = 0
+    steps_for_estimate_loss: int = 50
+    gradient_accumulation_steps: int = 2
 
 def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch_size_):
     train_config = Train_config()
