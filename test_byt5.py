@@ -186,7 +186,7 @@ def test_train():
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
-    batch_size = 4
+    batch_size = 10
     train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
 
 # test_train()
@@ -215,18 +215,18 @@ def test_checkpoint(path, prompts, max_length=200):
 
 
 def test_eval():
-    prompts = ['hello world!', 
-                   'one sentence speech recognition', 
-                   'Audio classification',
-                   'Posture classification training and model usage']
+    prompts = ['hello world!',
+               'one sentence speech recognition', 
+               'Audio classification',
+               'Posture classification training and model usage']
 
     
 
     for prompt in prompts:
-        test_checkpoint('./checkpoints-saved3/last_loss/pytorch_model.bin', prompt)
+        test_checkpoint('./checkpoints-saved4/last_loss/pytorch_model.bin', prompt)
 
     for prompt in prompts:
-        test_checkpoint('./checkpoints-saved3/minimal_loss/pytorch_model.bin', prompt)    
+        test_checkpoint('./checkpoints-saved4/minimal_loss/pytorch_model.bin', prompt)    
         
 
 
