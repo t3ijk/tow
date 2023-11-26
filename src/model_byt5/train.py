@@ -112,7 +112,15 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
         with open(f"{fold}/train_info.json", "w") as f:
             json.dump(train_info, f, indent=4)   
 
+
+def safe_check(checkpoints_path):
+    dir = os.listdir(checkpoints_path)
+    if len(dir) != 0:
+        raise Exception(f"The Directory Is Not Empty. {checkpoints_path}")
+
+
 def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch, batch_size):
+    safe_check(checkpoints_path)
 
     # adamw optimizer
     learning_rate = 6e-4 # max learning rate
