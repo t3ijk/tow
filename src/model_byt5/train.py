@@ -132,11 +132,11 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
         with open(f"{fold}/train_info.json", "w") as f:
             json.dump(train_info, f, indent=4)   
 
-def log_format(train_config, index_of_epoch, steps, epoch_steps, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
+def log_format(train_config, index_of_epoch, steps, steps_per_epoch, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
     progress = "{:.4f}".format(cur_step_num/all_steps)
     lr_2 = "{:.5e}".format(lr)
     h = "{:.2f}".format(delta_t * remain_steps / 3600)
-    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {h}"
+    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{steps_per_epoch}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {h}"
 
 def log_write(fd, log):
     os.write(fd, bytes(log, 'utf-8'))
@@ -200,15 +200,15 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
     # os.mkdir(out_log_path)
     fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
  
-    # all steps, model.forward()
+    # all steps, count model.forward()
     cur_step_num = 0
-    # gradient descent steps, optimizer.step(), ~= cur_step_num / gradient_accumulation_steps
+    # gradient descent steps, count optimizer.step(), ~= cur_step_num / gradient_accumulation_steps
     cur_iter_num = 0
     # loop for n_epoch
     for index_of_epoch in range(train_config.n_epoch):
         sample_offset = 0
-        steps = 0
-        epoch_steps = math.floor(train_config.n_sample / train_config.batch_size)
+        step_num_cur_epoch = 0
+        steps_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
         
         # loop for n_sample
         while train_config.n_sample - sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
@@ -235,16 +235,16 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
 
                     # update steps
                     sample_offset += train_config.batch_size
-                    steps += 1
+                    step_num_cur_epoch += 1
                     cur_step_num += 1    
 
                     now = time.time()
                     delta_t = now - last_t
                     last_t = now
                     
-                    all_steps = train_config.n_epoch * epoch_steps
+                    all_steps = train_config.n_epoch * steps_per_epoch
                     remain_steps = all_steps - cur_step_num
-                    log = log_format(train_config, index_of_epoch, steps, epoch_steps, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps)
+                    log = log_format(train_config, index_of_epoch, step_num_cur_epoch, steps_per_epoch, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps)
                     print(log)
                     log_write(fd, log+'\n')
                     loss = loss / train_config.gradient_accumulation_steps
@@ -270,6 +270,12 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     if cur_estimate_loss < min_estimate_loss:
                         min_estimate_loss = cur_estimate_loss
                         is_minimal_loss = True
-                    save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, train_config, is_minimal_loss)
+                    save_checkpoints(index_of_epoch,
+                                     step_num_cur_epoch,
+                                     cur_estimate_loss,
+                                     checkpoints_path,
+                                     model,
+                                     train_config,
+                                     is_minimal_loss)
        
     os.close(fd)                        
