@@ -170,7 +170,7 @@ class Train_config:
     n_sample: int = 0
     batch_size: int = 0
     n_epoch: int = 0
-    steps_for_estimate_loss: int = 50
+    steps_for_estimate_loss: int = 25
     gradient_accumulation_steps: int = 2
 
 def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch_size_):
