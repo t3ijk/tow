@@ -187,7 +187,7 @@ def test_train():
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
     batch_size = 10
-    train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
+    train_loop(model, datas, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
 
 test_train()
 

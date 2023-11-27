@@ -174,41 +174,86 @@ class Train_config:
     steps_for_estimate_loss: int = 25
     gradient_accumulation_steps: int = 2
 
-def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch_size_):
-    train_config = Train_config()
-    train_config.n_sample = len(datas)
-    train_config.batch_size = batch_size_
-    train_config.n_epoch = n_epoch_
+def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_path=None):
 
-    train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
-    train_config.warmup_iters = math.floor(train_config.max_iters / 300)
-    train_config.lr_decay_iters = train_config.max_iters
+    model: Transformer_byt5
 
-    safe_check(model, checkpoints_path, train_config)
+    is_resume = resume_path is not None
 
-    optimizer = configure_optimizers(model,
-                                     train_config.weight_decay,
-                                     train_config.learning_rate,
-                                     (train_config.beta1, train_config.beta2),
-                                     train_config.device_type)
+    if is_resume:
+        print('is_resume', is_resume)
+        with open(f'{resume_path}/config.json') as f:
+            config = json.load(f)
+        model = Transformer_byt5(config=config)
+        model.load_state_dict(torch.load(f'{resume_path}/pytorch_model.bin'))
+        model = model.train()
+        with open(f'{resume_path}/train_config.json') as f:
+            cf = json.load(f)
+            train_config = Train_config(*cf)
+            print(train_config)
+        
+        safe_check(model, checkpoints_path, train_config)
+        optimizer = configure_optimizers(model,
+                                        train_config.weight_decay,
+                                        train_config.learning_rate,
+                                        (train_config.beta1, train_config.beta2),
+                                        train_config.device_type)
+        optimizer.load_state_dict(torch.load(f'{resume_path}/optimizer.bin'))
 
-    last_t = time.time()
+        last_t = time.time()
+        now_iso = datetime.datetime.utcnow().isoformat()
+        out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
+        fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
 
-    now_iso = datetime.datetime.utcnow().isoformat()
-    out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
-    # os.mkdir(out_log_path)
-    fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
+        with open(f'{resume_path}/it_info.json') as f:
+            it_info = json.load(f)
+            print(train_config)
+            it_cur_estimate_loss = torch.tensor(it_info['it_cur_estimate_loss'])
+            it_min_estimate_loss = torch.tensor(it_info['it_min_estimate_loss'])
+            it_cur_step_num = it_info['it_cur_step_num']
+            it_cur_iter_num = it_info['it_cur_iter_num']            
+            it_index_of_epoch_resume = it_info['it_index_of_epoch']
+            it_sample_offset_resume = it_info['it_sample_offset']
+            it_step_num_cur_epoch_resume = it_info['it_step_num_cur_epoch']
     
-    it_cur_estimate_loss = torch.tensor(-1)
-    it_min_estimate_loss = torch.tensor(999)
-    # all steps, count model.forward()
-    it_cur_step_num = 0
-    # gradient descent steps, count optimizer.step(), ~= it_cur_step_num / gradient_accumulation_steps
-    it_cur_iter_num = 0
-    # loop for n_epoch
-    for it_index_of_epoch in range(train_config.n_epoch):
-        it_sample_offset = 0
-        it_step_num_cur_epoch = 0
+    else:
+        print('is_resume', is_resume)
+        model = model_
+        train_config = Train_config()
+        train_config.n_sample = len(datas)
+        train_config.batch_size = batch_size_
+        train_config.n_epoch = n_epoch_
+        train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
+        train_config.warmup_iters = math.floor(train_config.max_iters / 300)
+        train_config.lr_decay_iters = train_config.max_iters
+
+        safe_check(model, checkpoints_path, train_config)
+
+        optimizer = configure_optimizers(model,
+                                        train_config.weight_decay,
+                                        train_config.learning_rate,
+                                        (train_config.beta1, train_config.beta2),
+                                        train_config.device_type)
+
+        last_t = time.time()
+        now_iso = datetime.datetime.utcnow().isoformat()
+        out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
+        fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
+        
+        it_cur_estimate_loss = torch.tensor(-1)
+        it_min_estimate_loss = torch.tensor(999)
+        # all steps, count model.forward()
+        it_cur_step_num = 0
+        # gradient descent steps, count optimizer.step(), ~= it_cur_step_num / gradient_accumulation_steps
+        it_cur_iter_num = 0
+        # loop for n_epoch
+
+        it_index_of_epoch_resume = 0
+
+    for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
+
+        it_sample_offset = it_sample_offset_resume if is_resume else 0
+        it_step_num_cur_epoch = it_step_num_cur_epoch_resume if is_resume else 0
         it_steps_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
         
         # loop for n_sample
@@ -280,6 +325,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                         'it_sample_offset': it_sample_offset,
                         'it_step_num_cur_epoch': it_step_num_cur_epoch,
                         'it_steps_per_epoch': it_steps_per_epoch,
+                        'it_index_of_epoch': it_index_of_epoch,
                         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
                     }    
                     save_checkpoints(it_info,
