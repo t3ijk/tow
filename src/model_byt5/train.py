@@ -327,6 +327,8 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                         'it_steps_per_epoch': it_steps_per_epoch,
                         'it_index_of_epoch': it_index_of_epoch,
                         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
+                        'out_log_path': out_log_path,
+                        'is_resume': is_resume,
                     }    
                     save_checkpoints(it_info,
                                      checkpoints_path,
