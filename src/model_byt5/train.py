@@ -114,13 +114,12 @@ def get_batch(size, datas, it_sample_offset):
 
     return inputs_with_pads, labels_with_pads   
 
-def save_checkpoints(it_index_of_epoch, steps, it_cur_estimate_loss, checkpoints_path, model, train_config, is_minimal_loss):
-        train_info = {
-            'model_args': '',
-            'epoch-steps': f"{it_index_of_epoch}-{steps}",
-            'best_val_loss': it_cur_estimate_loss.tolist(),
-            'data': f"{datetime.datetime.utcnow().isoformat()}"
-        }
+def save_checkpoints(it_info,
+                    checkpoints_path,
+                    model,
+                    train_config,
+                    is_minimal_loss):
+    
         name = 'minimal_loss' if  is_minimal_loss else 'last_loss'
         fold = f"{checkpoints_path}/{name}"
         delete_files_in_directory(fold) 
@@ -129,8 +128,8 @@ def save_checkpoints(it_index_of_epoch, steps, it_cur_estimate_loss, checkpoints
             json.dump(asdict(model.byt5config), f, indent=4)
         with open(f"{fold}/train_config.json", "w") as f:
             json.dump(asdict(train_config), f, indent=4)     
-        with open(f"{fold}/train_info.json", "w") as f:
-            json.dump(train_info, f, indent=4)   
+        with open(f"{fold}/it_info.json", "w") as f:
+            json.dump(it_info, f, indent=4)   
 
 def log_format(train_config, it_index_of_epoch, steps, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
     progress = "{:.4f}".format(it_cur_step_num/all_steps)
@@ -270,9 +269,18 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     if it_cur_estimate_loss < it_min_estimate_loss:
                         it_min_estimate_loss = it_cur_estimate_loss
                         is_minimal_loss = True
-                    save_checkpoints(it_index_of_epoch,
-                                     it_step_num_cur_epoch,
-                                     it_cur_estimate_loss,
+
+                    it_info = {
+                        'it_cur_estimate_loss': it_cur_estimate_loss.tolist(),
+                        'it_min_estimate_loss': it_min_estimate_loss.tolist(),
+                        'it_cur_step_num': it_cur_step_num,
+                        'it_cur_iter_num': it_cur_iter_num,
+                        'it_sample_offset': it_sample_offset,
+                        'it_step_num_cur_epoch': it_step_num_cur_epoch,
+                        'it_steps_per_epoch': it_steps_per_epoch,
+                        'it_date': f"{datetime.datetime.utcnow().isoformat()}",
+                    }    
+                    save_checkpoints(it_info,
                                      checkpoints_path,
                                      model,
                                      train_config,
