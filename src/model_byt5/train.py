@@ -40,6 +40,20 @@ def configure_optimizers(model, weight_decay, learning_rate, betas, device_type)
 
     return optimizer
 
+# ref: karpathy/nanoGPT, learning rate decay scheduler (cosine with warmup)
+def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
+    # 1) linear warmup for warmup_iters steps
+    if it < warmup_iters:
+        return learning_rate * it / warmup_iters
+    # 2) if it > lr_decay_iters, return min learning rate
+    if it > lr_decay_iters:
+        return min_lr
+    # 3) in between, use cosine decay down to min learning rate
+    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
+    return min_lr + coeff * (learning_rate - min_lr)
+
 def prepare_datas():
     pass
 
@@ -115,6 +129,11 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
         with open(f"{fold}/train_info.json", "w") as f:
             json.dump(train_info, f, indent=4)   
 
+def log_format(train_config, index_of_epoch, steps, epoch_steps, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
+    progress = "{:.4f}".format(cur_step_num/all_steps) 
+    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr}, 'h', {delta_t * remain_steps / 3600}"
+
+
 def log_write(fd, log):
     os.write(fd, bytes(log, 'utf-8'))
     os.fsync(fd)
@@ -168,13 +187,15 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
 
     last_t = time.time()
 
-    # iter num 
-    cur_iter_num = 0
     now_iso = datetime.datetime.utcnow().isoformat()
     out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
     # os.mkdir(out_log_path)
     fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
-
+ 
+    # all steps, model.forward()
+    cur_step_num = 0
+    # gradient descent steps, optimizer.step(), ~= cur_step_num / gradient_accumulation_steps
+    cur_iter_num = 0
     # loop for n_epoch
     for index_of_epoch in range(train_config.n_epoch):
         sample_offset = 0
@@ -183,7 +204,16 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
         
         # loop for n_sample
         while train_config.n_sample - sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
+                # determine and set the learning rate for this iteration
+                lr = get_lr(cur_iter_num,
+                            train_config.warmup_iters,
+                            train_config.learning_rate,
+                            train_config.lr_decay_iters,
+                            train_config.min_lr) if train_config.decay_lr else train_config.learning_rate
                 
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = lr
+                            
                 need_estimate_loss = False
 
                 # loop for gradient_accumulation_steps
@@ -202,17 +232,15 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     # update steps
                     sample_offset += train_config.batch_size
                     steps += 1
-                    cur_iter_num += 1    
+                    cur_step_num += 1    
 
                     now = time.time()
-
                     delta_t = now - last_t
                     last_t = now
                     
                     all_steps = train_config.n_epoch * epoch_steps
-                    remain_steps = all_steps - cur_iter_num
-                    progress = "{:.4f}".format(cur_iter_num/all_steps) 
-                    log = f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'h', {delta_t * remain_steps / 3600}"
+                    remain_steps = all_steps - cur_step_num
+                    log = log_format(train_config, index_of_epoch, steps, epoch_steps, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps)
                     print(log)
                     log_write(fd, log+'\n')
                     loss = loss / train_config.gradient_accumulation_steps
@@ -222,6 +250,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
+                cur_iter_num += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
                     cur_estimate_loss = estimate_loss(model)

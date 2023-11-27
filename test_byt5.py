@@ -189,7 +189,7 @@ def test_train():
     batch_size = 10
     train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
 
-# test_train()
+test_train()
 
 
 def test_checkpoint(path, prompts, max_length=200):
@@ -234,4 +234,4 @@ def test_eval():
         
 
 
-test_eval()
+# test_eval()
