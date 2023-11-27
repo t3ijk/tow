@@ -44,7 +44,7 @@ def configure_optimizers(model, weight_decay, learning_rate, betas, device_type)
 def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
     if it == 0:
         it = 1
-        
+
     # 1) linear warmup for warmup_iters steps
     if it < warmup_iters:
         return learning_rate * it / warmup_iters
@@ -133,8 +133,9 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
             json.dump(train_info, f, indent=4)   
 
 def log_format(train_config, index_of_epoch, steps, epoch_steps, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
-    progress = "{:.4f}".format(cur_step_num/all_steps) 
-    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr}, 'h', {delta_t * remain_steps / 3600}"
+    progress = "{:.4f}".format(cur_step_num/all_steps)
+    lr_2 = "{:.2e}".format(lr)
+    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {delta_t * remain_steps / 3600}"
 
 
 def log_write(fd, log):
@@ -161,8 +162,8 @@ class Train_config:
     grad_clip: float = 1.0 # clip gradients at this value, or disable if == 0.0
     # learning rate decay settings
     decay_lr: bool = True # whether to decay the learning rate
-    warmup_iters = 2000 # how many steps to warm up for
-    lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
+    warmup_iters: int = 2000 # how many steps to warm up for
+    lr_decay_iters: int = 600000 # should be ~= max_iters per Chinchilla
     min_lr: float = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
     device_type: str  = 'cpu'
@@ -177,6 +178,10 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
     train_config.n_sample = len(datas)
     train_config.batch_size = batch_size_
     train_config.n_epoch = n_epoch_
+
+    train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
+    train_config.warmup_iters = math.floor(train_config.max_iters / 300)
+    train_config.lr_decay_iters = train_config.max_iters
 
     safe_check(model, checkpoints_path, train_config)
 
