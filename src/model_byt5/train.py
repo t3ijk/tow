@@ -148,7 +148,7 @@ def safe_check(model, checkpoints_path, train_config):
     print(model.byt5config)
     dir = os.listdir(checkpoints_path)
     if len(dir) != 0:
-        raise Exception(f"The Directory Is Not Empty. {checkpoints_path}")
+        raise Exception(f"The directory is not empty. You may need to back up checkpoints and then clear the directory. {checkpoints_path}")
     
 @dataclass
 class Train_config:
