@@ -42,6 +42,9 @@ def configure_optimizers(model, weight_decay, learning_rate, betas, device_type)
 
 # ref: karpathy/nanoGPT, learning rate decay scheduler (cosine with warmup)
 def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
+    if it == 0:
+        it = 1
+        
     # 1) linear warmup for warmup_iters steps
     if it < warmup_iters:
         return learning_rate * it / warmup_iters
