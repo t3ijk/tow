@@ -16,7 +16,8 @@ def delete_files_in_directory(directory_path):
     try:
      os.mkdir(directory_path)
     except OSError as error:
-     print("Error occurred while mkdir path.", error)
+       pass
+    #  print("Error occurred while mkdir path.", error)
 
     try:
      files = os.listdir(directory_path)
@@ -26,6 +27,6 @@ def delete_files_in_directory(directory_path):
             os.remove(file_path)
         else:
             shutil.rmtree(file_path)
-     print(f"{directory_path} All files deleted successfully.")
+    #  print(f"{directory_path} All files deleted successfully.")
     except OSError as error:
      print("Error occurred while deleting files.", error)
