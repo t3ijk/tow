@@ -73,14 +73,14 @@ def estimate_loss(model):
     return loss
 
 
-def get_batch(size, datas, sample_offset):
+def get_batch(size, datas, it_sample_offset):
     inputs = []
     labels = []
 
     max_in_ids = 0
     max_la_ids = 0
 
-    for data in datas[sample_offset:sample_offset+size]:
+    for data in datas[it_sample_offset:it_sample_offset+size]:
         in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 1, 258]
         la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")], 1]
         if len(in_ids) > max_in_ids:
@@ -114,11 +114,11 @@ def get_batch(size, datas, sample_offset):
 
     return inputs_with_pads, labels_with_pads   
 
-def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, train_config, is_minimal_loss):
+def save_checkpoints(it_index_of_epoch, steps, it_cur_estimate_loss, checkpoints_path, model, train_config, is_minimal_loss):
         train_info = {
             'model_args': '',
-            'epoch-steps': f"{index_of_epoch}-{steps}",
-            'best_val_loss': cur_estimate_loss.tolist(),
+            'epoch-steps': f"{it_index_of_epoch}-{steps}",
+            'best_val_loss': it_cur_estimate_loss.tolist(),
             'data': f"{datetime.datetime.utcnow().isoformat()}"
         }
         name = 'minimal_loss' if  is_minimal_loss else 'last_loss'
@@ -132,11 +132,11 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
         with open(f"{fold}/train_info.json", "w") as f:
             json.dump(train_info, f, indent=4)   
 
-def log_format(train_config, index_of_epoch, steps, steps_per_epoch, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
-    progress = "{:.4f}".format(cur_step_num/all_steps)
+def log_format(train_config, it_index_of_epoch, steps, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
+    progress = "{:.4f}".format(it_cur_step_num/all_steps)
     lr_2 = "{:.5e}".format(lr)
     h = "{:.2f}".format(delta_t * remain_steps / 3600)
-    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{steps_per_epoch}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {h}"
+    return f"{it_index_of_epoch}/{train_config.n_epoch}-{steps}/{it_steps_per_epoch}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {h}"
 
 def log_write(fd, log):
     os.write(fd, bytes(log, 'utf-8'))
@@ -185,8 +185,6 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
 
     safe_check(model, checkpoints_path, train_config)
 
-    cur_estimate_loss = torch.tensor(-1)
-    min_estimate_loss = torch.tensor(999)
     optimizer = configure_optimizers(model,
                                      train_config.weight_decay,
                                      train_config.learning_rate,
@@ -199,21 +197,23 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
     out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
     # os.mkdir(out_log_path)
     fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
- 
+    
+    it_cur_estimate_loss = torch.tensor(-1)
+    it_min_estimate_loss = torch.tensor(999)
     # all steps, count model.forward()
-    cur_step_num = 0
-    # gradient descent steps, count optimizer.step(), ~= cur_step_num / gradient_accumulation_steps
-    cur_iter_num = 0
+    it_cur_step_num = 0
+    # gradient descent steps, count optimizer.step(), ~= it_cur_step_num / gradient_accumulation_steps
+    it_cur_iter_num = 0
     # loop for n_epoch
-    for index_of_epoch in range(train_config.n_epoch):
-        sample_offset = 0
-        step_num_cur_epoch = 0
-        steps_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
+    for it_index_of_epoch in range(train_config.n_epoch):
+        it_sample_offset = 0
+        it_step_num_cur_epoch = 0
+        it_steps_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
         
         # loop for n_sample
-        while train_config.n_sample - sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
+        while train_config.n_sample - it_sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
                 # determine and set the learning rate for this iteration
-                lr = get_lr(cur_iter_num,
+                lr = get_lr(it_cur_iter_num,
                             train_config.warmup_iters,
                             train_config.learning_rate,
                             train_config.lr_decay_iters,
@@ -226,7 +226,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
 
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
-                    inputs, labels = get_batch(train_config.batch_size, datas, sample_offset)
+                    inputs, labels = get_batch(train_config.batch_size, datas, it_sample_offset)
                     input_ids = torch.tensor(inputs)
                     label_ids = torch.tensor(labels)
 
@@ -234,17 +234,17 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     _, loss = model(input_ids, label_ids)
 
                     # update steps
-                    sample_offset += train_config.batch_size
-                    step_num_cur_epoch += 1
-                    cur_step_num += 1    
+                    it_sample_offset += train_config.batch_size
+                    it_step_num_cur_epoch += 1
+                    it_cur_step_num += 1    
 
                     now = time.time()
                     delta_t = now - last_t
                     last_t = now
                     
-                    all_steps = train_config.n_epoch * steps_per_epoch
-                    remain_steps = all_steps - cur_step_num
-                    log = log_format(train_config, index_of_epoch, step_num_cur_epoch, steps_per_epoch, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps)
+                    all_steps = train_config.n_epoch * it_steps_per_epoch
+                    remain_steps = all_steps - it_cur_step_num
+                    log = log_format(train_config, it_index_of_epoch, it_step_num_cur_epoch, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps)
                     print(log)
                     log_write(fd, log+'\n')
                     loss = loss / train_config.gradient_accumulation_steps
@@ -256,23 +256,23 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                 optimizer.zero_grad(set_to_none=True)
                 
                 
-                # use cur_iter_num to flag need_estimate_loss
-                if cur_iter_num % train_config.steps_for_estimate_loss == 0:
+                # use it_cur_iter_num to flag need_estimate_loss
+                if it_cur_iter_num % train_config.steps_for_estimate_loss == 0:
                     need_estimate_loss = True
-                cur_iter_num += 1
+                it_cur_iter_num += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
-                    cur_estimate_loss = estimate_loss(model)
-                    log = f"'cur_estimate_loss', {cur_estimate_loss.tolist()}, 'ts', {time.time()}"
+                    it_cur_estimate_loss = estimate_loss(model)
+                    log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}"
                     print(log)
                     log_write(fd, log+'\n')
                     is_minimal_loss = False
-                    if cur_estimate_loss < min_estimate_loss:
-                        min_estimate_loss = cur_estimate_loss
+                    if it_cur_estimate_loss < it_min_estimate_loss:
+                        it_min_estimate_loss = it_cur_estimate_loss
                         is_minimal_loss = True
-                    save_checkpoints(index_of_epoch,
-                                     step_num_cur_epoch,
-                                     cur_estimate_loss,
+                    save_checkpoints(it_index_of_epoch,
+                                     it_step_num_cur_epoch,
+                                     it_cur_estimate_loss,
                                      checkpoints_path,
                                      model,
                                      train_config,
