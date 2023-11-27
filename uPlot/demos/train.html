@@ -98,7 +98,7 @@
             let uplot = new uPlot(opts, data, document.body);
 
             Promise.resolve().then(() => {
-                wait.textContent = "Done!";
+                wait.textContent = "";
                 console.timeEnd("chart");
             });
         }

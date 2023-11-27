@@ -189,7 +189,7 @@ def test_train():
     batch_size = 10
     train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
 
-test_train()
+# test_train()
 
 
 def test_checkpoint(path, prompts, max_length=200):
@@ -218,16 +218,19 @@ def test_eval():
     prompts = ['hello world!',
                'one sentence speech recognition', 
                'Audio classification',
-               'Posture classification training and model usage']
+               'Posture classification training and model usage',
+               '选一个字母，让它旋转',
+               '添加一个声音',
+               '启动客户端']
 
     
 
     for prompt in prompts:
-        test_checkpoint('./checkpoints-saved4/last_loss/pytorch_model.bin', prompt)
+        test_checkpoint('./checkpoints-saved5/last_loss/pytorch_model.bin', prompt)
 
     for prompt in prompts:
-        test_checkpoint('./checkpoints-saved4/minimal_loss/pytorch_model.bin', prompt)    
+        test_checkpoint('./checkpoints-saved5/minimal_loss/pytorch_model.bin', prompt)    
         
 
 
-# test_eval()
+test_eval()
