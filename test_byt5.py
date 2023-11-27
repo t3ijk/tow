@@ -219,6 +219,7 @@ def test_eval():
                'one sentence speech recognition', 
                'Audio classification',
                'Posture classification training and model usage',
+               '选一个字母',
                '选一个字母，让它旋转',
                '添加一个声音',
                '启动客户端']
