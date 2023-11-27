@@ -129,6 +129,7 @@ def safe_check(model, checkpoints_path, train_config):
     
 @dataclass
 class Train_config:
+    # ref: karpathy/nanoGPT
     # adamw optimizer
     learning_rate: float = 6e-4 # max learning rate
     max_iters: int = 600000 # total number of training iterations
@@ -143,7 +144,6 @@ class Train_config:
     min_lr: float = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
     device_type: str  = 'cpu'
-    # optimizer = configure_optimizers(model, weight_decay, learning_rate, (beta1, beta2), device_type)
     n_samples: int = 0
     batch_size: int = 0
     n_epoch: int = 0
