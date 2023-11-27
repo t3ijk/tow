@@ -134,9 +134,9 @@ def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path,
 
 def log_format(train_config, index_of_epoch, steps, epoch_steps, cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
     progress = "{:.4f}".format(cur_step_num/all_steps)
-    lr_2 = "{:.2e}".format(lr)
-    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {delta_t * remain_steps / 3600}"
-
+    lr_2 = "{:.5e}".format(lr)
+    h = "{:.2}".format(delta_t * remain_steps / 3600)
+    return f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {h}"
 
 def log_write(fd, log):
     os.write(fd, bytes(log, 'utf-8'))
