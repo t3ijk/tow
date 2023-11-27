@@ -233,10 +233,6 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     # model forward
                     _, loss = model(input_ids, label_ids)
 
-                    # use real steps to flag need_estimate_loss
-                    if steps % train_config.steps_for_estimate_loss == 0:
-                        need_estimate_loss = True
-
                     # update steps
                     sample_offset += train_config.batch_size
                     steps += 1
@@ -258,6 +254,11 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
+                
+                
+                # use cur_iter_num to flag need_estimate_loss
+                if cur_iter_num % train_config.steps_for_estimate_loss == 0:
+                    need_estimate_loss = True
                 cur_iter_num += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
