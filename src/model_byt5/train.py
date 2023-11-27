@@ -118,18 +118,20 @@ def save_checkpoints(it_info,
                     checkpoints_path,
                     model,
                     train_config,
-                    is_minimal_loss):
+                    is_minimal_loss,
+                    optimizer):
     
         name = 'minimal_loss' if  is_minimal_loss else 'last_loss'
         fold = f"{checkpoints_path}/{name}"
         delete_files_in_directory(fold) 
         torch.save(model.state_dict(), f"{fold}/pytorch_model.bin")
+        torch.save(optimizer.state_dict(), f"{fold}/optimizer.bin")
         with open(f"{fold}/config.json", "w") as f:
             json.dump(asdict(model.byt5config), f, indent=4)
         with open(f"{fold}/train_config.json", "w") as f:
             json.dump(asdict(train_config), f, indent=4)     
         with open(f"{fold}/it_info.json", "w") as f:
-            json.dump(it_info, f, indent=4)   
+            json.dump(it_info, f, indent=4)  
 
 def log_format(train_config, it_index_of_epoch, steps, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
     progress = "{:.4f}".format(it_cur_step_num/all_steps)
@@ -284,6 +286,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                                      checkpoints_path,
                                      model,
                                      train_config,
-                                     is_minimal_loss)
+                                     is_minimal_loss,
+                                     optimizer)
        
     os.close(fd)                        
