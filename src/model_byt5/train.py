@@ -189,7 +189,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         model = model.train()
         with open(f'{resume_path}/train_config.json') as f:
             cf = json.load(f)
-            train_config = Train_config(*cf)
+            train_config = Train_config(**cf)
             print(train_config)
         
         safe_check(model, checkpoints_path, train_config)
