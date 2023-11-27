@@ -100,7 +100,7 @@ def get_batch(size, datas, sample_offset):
 def save_checkpoints(index_of_epoch, steps, cur_estimate_loss, checkpoints_path, model, train_config, is_minimal_loss):
         train_info = {
             'model_args': '',
-            'iter_num': f"{index_of_epoch}-{steps}",
+            'epoch-steps': f"{index_of_epoch}-{steps}",
             'best_val_loss': cur_estimate_loss.tolist(),
             'data': f"{datetime.datetime.utcnow().isoformat()}"
         }
@@ -144,7 +144,7 @@ class Train_config:
     min_lr: float = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
     device_type: str  = 'cpu'
-    n_samples: int = 0
+    n_sample: int = 0
     batch_size: int = 0
     n_epoch: int = 0
     steps_for_estimate_loss: int = 50
@@ -152,7 +152,7 @@ class Train_config:
 
 def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch_size_):
     train_config = Train_config()
-    train_config.n_samples = len(datas)
+    train_config.n_sample = len(datas)
     train_config.batch_size = batch_size_
     train_config.n_epoch = n_epoch_
 
@@ -167,19 +167,26 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                                      train_config.device_type)
 
     last_t = time.time()
-    all_past_steps = 0
+
+    # iter num 
+    cur_iter_num = 0
     now_iso = datetime.datetime.utcnow().isoformat()
     out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
     # os.mkdir(out_log_path)
     fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
+
+    # loop for n_epoch
     for index_of_epoch in range(train_config.n_epoch):
         sample_offset = 0
         steps = 0
-        epoch_steps = math.floor(train_config.n_samples / train_config.batch_size)
+        epoch_steps = math.floor(train_config.n_sample / train_config.batch_size)
         
-        while train_config.n_samples - sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
+        # loop for n_sample
+        while train_config.n_sample - sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
                 
                 need_estimate_loss = False
+
+                # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
                     inputs, labels = get_batch(train_config.batch_size, datas, sample_offset)
                     input_ids = torch.tensor(inputs)
@@ -195,7 +202,7 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     # update steps
                     sample_offset += train_config.batch_size
                     steps += 1
-                    all_past_steps += 1    
+                    cur_iter_num += 1    
 
                     now = time.time()
 
@@ -203,8 +210,8 @@ def train_loop(model: Transformer_byt5, datas, checkpoints_path, n_epoch_, batch
                     last_t = now
                     
                     all_steps = train_config.n_epoch * epoch_steps
-                    remain_steps = all_steps - all_past_steps
-                    progress = "{:.4f}".format(all_past_steps/all_steps) 
+                    remain_steps = all_steps - cur_iter_num
+                    progress = "{:.4f}".format(cur_iter_num/all_steps) 
                     log = f"{index_of_epoch}/{train_config.n_epoch}-{steps}/{epoch_steps}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'h', {delta_t * remain_steps / 3600}"
                     print(log)
                     log_write(fd, log+'\n')
