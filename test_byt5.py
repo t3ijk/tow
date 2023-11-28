@@ -181,13 +181,14 @@ def test_train():
     model = model.train()
     # print_model_info(model)
 
-    with open('./datas/datas.json', 'r') as f:
+    with open('./datas/datas-v2.json', 'r') as f:
         datas = json.load(f)
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
     batch_size = 10
-    train_loop(model, datas, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
+    train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
+    # train_loop(model, datas, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
 
 test_train()
 
