@@ -32,6 +32,15 @@
             return Math.round(val * 1000) / 1000;
         }
 
+
+        function beNumber(n) {
+            if (isNaN(n)) {
+                return null // show nothing
+            } else {
+                return Number(n)
+            }
+        }
+
         function prepData(packed) {
 
             lines = packed.split('\n')
@@ -40,21 +49,20 @@
             var index = 0
             lines.forEach(line => {
                 values = line.split(' ').join('').split(',')
+
+
                 if (values.length == 9) {
-                    data[0][index] = Math.floor(values[4])
-                    data[1][index] = values[2]
-                    data[3][index] = Number(values[0].split('/')[[0]])
-                    data[4][index] = values[6]
+                    data[0][index] = Math.floor(beNumber(values[4]))
+                    data[1][index] = beNumber(values[2])
+                    data[3][index] = beNumber(values[0].split('/')[[0]])
+                    data[4][index] = beNumber(values[6])
                     index += 1
-                } 
+                }
                 if (values.length == 4) {
-                    data[0][index] = Math.floor(values[3])
-                    data[2][index] = values[1]
-                } 
+                    data[0][index] = Math.floor(beNumber(values[3]))
+                    data[2][index] = beNumber(values[1])
+                }
             });
-
-
-
             return data;
         }
 
@@ -76,7 +84,7 @@
                         label: "Loss",
                         scale: "loss",
                         value: (u, v) => {
-                            return  v == null ? null : v
+                            return v == null ? null : v
                         },
                         stroke: "green",
                         width: 1 / devicePixelRatio,
@@ -95,11 +103,11 @@
                         stroke: "gray",
                         width: 1 / devicePixelRatio,
                     },
-                     {
+                    {
                         label: "lr",
                         scale: "lr",
                         value: (u, v) => v == null ? null : v,
-                        stroke: "gray",
+                        stroke: "orange",
                         width: 1 / devicePixelRatio,
                     },
                 ],
@@ -139,7 +147,7 @@
         let params = new URL(document.location).searchParams;
         let log = params.get("log");
         if (log) {
-          logFile = log
+            logFile = log
         }
 
         fetch(logFile).then(r => r.text()).then(packed => {
