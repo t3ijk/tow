@@ -258,6 +258,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         # only shuffle per epoch
         data_indexes_shuffled = [*range(train_config.n_sample)]
         random.Random(it_index_of_epoch).shuffle(data_indexes_shuffled)
+        print('epoch shuffle with seed: ', it_index_of_epoch)
     
         # only the resumed epoch is special
         is_resumed_epoch = is_resume_training and it_index_of_epoch == it_index_of_epoch_resume
@@ -345,4 +346,6 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                                      is_minimal_loss,
                                      optimizer)
        
-    os.close(fd)                        
+    os.close(fd)
+
+    print('Training is completed')                    
