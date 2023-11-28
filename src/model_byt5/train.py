@@ -178,10 +178,10 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
 
     model: Transformer_byt5
 
-    is_resume = resume_path is not None
+    is_resume_training = resume_path is not None
 
-    if is_resume:
-        print('is_resume', is_resume)
+    if is_resume_training:
+        print('is_resume_training', is_resume_training)
         with open(f'{resume_path}/config.json') as f:
             config = json.load(f)
         model = Transformer_byt5(config=config)
@@ -217,7 +217,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
             it_step_num_cur_epoch_resume = it_info['it_step_num_cur_epoch']
     
     else:
-        print('is_resume', is_resume)
+        print('is_resume_training', is_resume_training)
         model = model_
         train_config = Train_config()
         train_config.n_sample = len(datas)
@@ -252,8 +252,10 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
 
     for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
 
-        it_sample_offset = it_sample_offset_resume if is_resume else 0
-        it_step_num_cur_epoch = it_step_num_cur_epoch_resume if is_resume else 0
+        # only the resumed epoch is special
+        is_resumed_epoch = is_resume_training and it_index_of_epoch == it_index_of_epoch_resume
+        it_sample_offset = it_sample_offset_resume if is_resumed_epoch else 0
+        it_step_num_cur_epoch = it_step_num_cur_epoch_resume if is_resumed_epoch else 0
         it_steps_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
         
         # loop for n_sample
@@ -328,7 +330,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                         'it_index_of_epoch': it_index_of_epoch,
                         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
                         'out_log_path': out_log_path,
-                        'is_resume': is_resume,
+                        'is_resume_training': is_resume_training,
                     }    
                     save_checkpoints(it_info,
                                      checkpoints_path,
