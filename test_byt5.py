@@ -194,6 +194,7 @@ def test_generate2(use_cache):
 
 
 def test_checkpoint(path, prompts, max_length=200):
+    print('test_checkpoint path', path)
     input_ids=torch.tensor([[*tk.text2ids(prompts), 258]])
     state_dict = torch.load(path)
     model = Transformer_byt5(config=config)
@@ -228,10 +229,10 @@ def test_eval():
     
 
     for prompt in prompts:
-        test_checkpoint('./checkpoints-saved5/last_loss/pytorch_model.bin', prompt)
+        test_checkpoint('./checkpoints/last_loss/pytorch_model.bin', prompt)
 
     for prompt in prompts:
-        test_checkpoint('./checkpoints-saved5/minimal_loss/pytorch_model.bin', prompt)    
+        test_checkpoint('./checkpoints/minimal_loss/pytorch_model.bin', prompt)    
         
 
 
