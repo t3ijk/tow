@@ -190,7 +190,6 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         with open(f'{resume_path}/train_config.json') as f:
             cf = json.load(f)
             train_config = Train_config(**cf)
-            print(train_config)
         
         safe_check(model, checkpoints_path, train_config)
         optimizer = configure_optimizers(model,
@@ -207,7 +206,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
 
         with open(f'{resume_path}/it_info.json') as f:
             it_info = json.load(f)
-            print(train_config)
+            print('Resumed it_info:', it_info)
             it_cur_estimate_loss = torch.tensor(it_info['it_cur_estimate_loss'])
             it_min_estimate_loss = torch.tensor(it_info['it_min_estimate_loss'])
             it_cur_step_num = it_info['it_cur_step_num']
