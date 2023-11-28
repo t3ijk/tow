@@ -259,7 +259,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         it_steps_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
         
         # loop for n_sample
-        while train_config.n_sample - it_sample_offset > train_config.batch_size * train_config.gradient_accumulation_steps:
+        while train_config.n_sample - it_sample_offset >= train_config.batch_size * train_config.gradient_accumulation_steps:
                 # determine and set the learning rate for this iteration
                 lr = get_lr(it_cur_iter_num,
                             train_config.warmup_iters,
@@ -281,11 +281,6 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                     # model forward
                     _, loss = model(input_ids, label_ids)
 
-                    # update steps
-                    it_sample_offset += train_config.batch_size
-                    it_step_num_cur_epoch += 1
-                    it_cur_step_num += 1    
-
                     now = time.time()
                     delta_t = now - last_t
                     last_t = now
@@ -297,6 +292,10 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                     log_write(fd, log+'\n')
                     loss = loss / train_config.gradient_accumulation_steps
                     loss.backward()
+                    # update steps counter
+                    it_sample_offset += train_config.batch_size
+                    it_step_num_cur_epoch += 1
+                    it_cur_step_num += 1 
 
                 if train_config.grad_clip != 0.0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
