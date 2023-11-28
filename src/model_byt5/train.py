@@ -13,6 +13,8 @@ import datetime
 from src.model_byt5.tokenizer import Tokenizer_byt5
 from dataclasses import dataclass, asdict
 import re
+import random
+
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
     # start with all of the candidate parameters
@@ -73,14 +75,16 @@ def estimate_loss(model):
     return loss
 
 
-def get_batch(size, datas, it_sample_offset):
+def get_batch(size, datas, it_sample_offset, data_indexes_shuffled):
     inputs = []
     labels = []
 
     max_in_ids = 0
     max_la_ids = 0
 
-    for data in datas[it_sample_offset:it_sample_offset+size]:
+    for index in data_indexes_shuffled[it_sample_offset:it_sample_offset+size]:
+        # get data from index
+        data = datas[index]
         in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 1, 258]
         la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")], 1]
         if len(in_ids) > max_in_ids:
@@ -251,6 +255,10 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
 
     for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
 
+        # only shuffle per epoch
+        data_indexes_shuffled = [*range(train_config.n_sample)]
+        random.Random(it_index_of_epoch).shuffle(data_indexes_shuffled)
+    
         # only the resumed epoch is special
         is_resumed_epoch = is_resume_training and it_index_of_epoch == it_index_of_epoch_resume
         it_sample_offset = it_sample_offset_resume if is_resumed_epoch else 0
@@ -273,7 +281,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
 
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
-                    inputs, labels = get_batch(train_config.batch_size, datas, it_sample_offset)
+                    inputs, labels = get_batch(train_config.batch_size, datas, it_sample_offset, data_indexes_shuffled)
                     input_ids = torch.tensor(inputs)
                     label_ids = torch.tensor(labels)
 
