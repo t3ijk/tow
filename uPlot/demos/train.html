@@ -35,7 +35,7 @@
         function prepData(packed) {
 
             lines = packed.split('\n')
-            let data = [[], [], [], []];
+            let data = [[], [], [], [], []];
 
             var index = 0
             lines.forEach(line => {
@@ -44,6 +44,7 @@
                     data[0][index] = Math.floor(values[4])
                     data[1][index] = values[2]
                     data[3][index] = Number(values[0].split('/')[[0]])
+                    data[4][index] = values[6]
                     index += 1
                 } 
                 if (values.length == 4) {
@@ -94,6 +95,13 @@
                         stroke: "gray",
                         width: 1 / devicePixelRatio,
                     },
+                     {
+                        label: "lr",
+                        scale: "lr",
+                        value: (u, v) => v == null ? null : v,
+                        stroke: "gray",
+                        width: 1 / devicePixelRatio,
+                    },
                 ],
                 axes: [
                     {},
@@ -103,7 +111,13 @@
                     },
                     {
                         scale: "epoch",
-                        values: (self, ticks) => ticks.map(rawValue => rawValue + "EPO"),
+                        values: (self, ticks) => ticks.map(rawValue => rawValue + ""),
+                        side: 1,
+                        grid: { show: false },
+                    },
+                    {
+                        scale: "lr",
+                        values: (self, ticks) => ticks.map(rawValue => rawValue.toExponential()),
                         side: 1,
                         grid: { show: false },
                     },
