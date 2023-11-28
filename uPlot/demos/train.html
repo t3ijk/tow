@@ -35,7 +35,7 @@
         function prepData(packed) {
 
             lines = packed.split('\n')
-            let data = [[], [], []];
+            let data = [[], [], [], []];
 
             var index = 0
             lines.forEach(line => {
@@ -43,12 +43,12 @@
                 if (values.length == 9) {
                     data[0][index] = Math.floor(values[4])
                     data[1][index] = values[2]
+                    data[3][index] = Number(values[0].split('/')[[0]])
                     index += 1
                 } 
                 if (values.length == 4) {
                     data[0][index] = Math.floor(values[3])
                     data[2][index] = values[1]
-                    
                 } 
             });
 
@@ -74,7 +74,9 @@
                     {
                         label: "Loss",
                         scale: "loss",
-                        value: (u, v) => v == null ? null : v,
+                        value: (u, v) => {
+                            return  v == null ? null : v
+                        },
                         stroke: "green",
                         width: 1 / devicePixelRatio,
                     },
@@ -85,12 +87,25 @@
                         stroke: "red",
                         width: 1 / devicePixelRatio,
                     },
+                    {
+                        label: "Epoch",
+                        scale: "epoch",
+                        value: (u, v) => v == null ? null : v,
+                        stroke: "gray",
+                        width: 1 / devicePixelRatio,
+                    },
                 ],
                 axes: [
                     {},
                     {
                         scale: "loss",
                         values: (u, vals, space) => vals.map(v => +v.toFixed(1)),
+                    },
+                    {
+                        scale: "epoch",
+                        values: (self, ticks) => ticks.map(rawValue => rawValue + "EPO"),
+                        side: 1,
+                        grid: { show: false },
                     },
                 ],
             };
