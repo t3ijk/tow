@@ -64,15 +64,16 @@
             if (last_ts != null) {
                 gap = ts - last_ts
             }
+            if (gap < 0) {
+                console.log('gap < 0', gap)
+            }
             if (maxGap != null && gap > maxGap) {
                 cumulated_gap_offset = (gap - maxGap) + cumulated_gap_offset
             }
             new_ts = ts - cumulated_gap_offset
-            last_ts = new_ts
+            last_ts = ts
             return new_ts
         }
-
-
 
         function prepData(packed) {
             let params = new URL(document.location).searchParams;
