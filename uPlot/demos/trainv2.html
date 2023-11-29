@@ -221,6 +221,17 @@
                 ],
             };
 
+            let params = new URL(document.location).searchParams;
+            let distr = params.get("distr");
+
+            if (distr != null) {
+                opts['scales'] = {
+                    x: {
+                        distr: 2
+                    }
+                }
+            }
+
             let uplot = new uPlot(opts, data, document.body);
 
             Promise.resolve().then(() => {
@@ -250,7 +261,16 @@
 
     <p>
         Demo:
+
+        </br>
+        http://localhost:8080/uPlot/demos/trainv2.html?log=http://localhost:8080/out-2023.11.29.02.18.00.876671.log
+
+        </br>
         http://localhost:8080/uPlot/demos/trainv2.html?log=http://localhost:8080/out-2023.11.29.02.18.00.876671.log&from=1701169323&to=867089033126831&maxGap=3600
+
+        </br>
+        http://localhost:8080/uPlot/demos/trainv2.html?log=http://localhost:8080/out-2023.11.29.02.18.00.876671.log&distr=2
+
     </p>
 
 </body>
