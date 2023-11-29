@@ -41,17 +41,62 @@
             }
         }
 
+        function handleFromToFilter(ts, from, to) {
+            if (from > 0 && ts < from) {
+                return true
+            }
+
+            if (to > 0 && ts > to) {
+                return true
+            }
+            return false
+        }
+
+
+        let last_ts = null
+        let cumulated_gap_offset = 0
+        function handleMaxGap(ts, maxGap) {
+            let gap = 0
+            if (last_ts > 0) {
+                gap = ts - last_ts
+            }
+            last_ts = ts
+            if (gap > maxGap) {
+                cumulated_gap_offset = (gap - maxGap) + cumulated_gap_offset
+            }
+            return ts - cumulated_gap_offset
+        }
+
+
+
         function prepData(packed) {
+            let params = new URL(document.location).searchParams;
+            let from = params.get("from");
+            let to = params.get("to");
+            let maxGap = params.get("maxGap");
+
+            console.log(from, to, maxGap)
+
+            // http://localhost:8080/uPlot/demos/trainv2.html?log=http://localhost:8080/out-2023.11.29.02.18.00.876671.log&from=1701169323&to=867089033126831&maxGap=3600
 
             lines = packed.split('\n')
             let data = [[], [], [], [], [], [], []];
 
             var index = 0
+            let last_ts = null
             lines.forEach(line => {
                 values = line.split(' ').join('').split(',')
 
+                let ts = null
+
                 if (line.includes("'loss:'")) {
-                    data[0][index] = Math.floor(beNumber(values[4]))
+
+                    ts = Math.floor(beNumber(values[4]))
+                    if (handleFromToFilter(ts, from, to)) {
+                        return
+                    }
+                    let new_ts = handleMaxGap(ts, maxGap)
+                    data[0][index] = new_ts
                     data[1][index] = beNumber(values[2])
                     data[3][index] = beNumber(values[0].split('/')[[0]])
                     data[4][index] = beNumber(values[6])
@@ -60,9 +105,18 @@
                     index += 1
                 }
                 if (values.length == 4) {
-                    data[0][index] = Math.floor(beNumber(values[3]))
+                    ts = Math.floor(beNumber(values[3]))
+                    if (handleFromToFilter(ts, from, to)) {
+                        return
+                    }
+                    let new_ts = handleMaxGap(ts, maxGap)
+                    data[0][index] = new_ts
                     data[2][index] = beNumber(values[1])
+                    index += 1
                 }
+
+
+
             });
             return data;
         }
@@ -186,6 +240,14 @@
             setTimeout(() => makeChart(data), 0);
         });
     </script>
+
+
+
+    <p>
+        Demo:
+        http://localhost:8080/uPlot/demos/trainv2.html?log=http://localhost:8080/out-2023.11.29.02.18.00.876671.log&from=1701169323&to=867089033126831&maxGap=3600
+    </p>
+
 </body>
 
 </html>
