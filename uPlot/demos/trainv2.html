@@ -61,9 +61,10 @@
                 gap = ts - last_ts
             }
             last_ts = ts
-            if (gap > maxGap) {
+            if (maxGap > 0 && gap > maxGap) {
                 cumulated_gap_offset = (gap - maxGap) + cumulated_gap_offset
             }
+
             return ts - cumulated_gap_offset
         }
 
@@ -90,7 +91,6 @@
                 let ts = null
 
                 if (line.includes("'loss:'")) {
-
                     ts = Math.floor(beNumber(values[4]))
                     if (handleFromToFilter(ts, from, to)) {
                         return
@@ -118,6 +118,7 @@
 
 
             });
+            console.log('len: ', data[0].length)
             return data;
         }
 
