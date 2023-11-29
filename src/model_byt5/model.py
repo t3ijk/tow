@@ -346,7 +346,7 @@ class Transformer_byt5(nn.Module):
         if labels is not None:
             last_outputs = labels[:, :-1] # Delete the last label, and the exactly one hopefully will be generated as "next token".
         shifted_input_ids = torch.zeros ((last_outputs.shape[0], last_outputs.shape[1] + 1), 
-                                         dtype=torch.int32)
+                                         dtype=torch.int32).to(next(CUR_MODEL.parameters()).device)
         shifted_input_ids[:, 1:] = last_outputs
         shifted_input_ids[:, 0] = 0
 
@@ -390,8 +390,8 @@ class Transformer_byt5(nn.Module):
         encoder_hidden_states = self.encode(inputs)
         # decode
         batch_size = encoder_hidden_states.shape[0]
-        yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32)
-        last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0, dtype=torch.int32)
+        yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32).to(next(CUR_MODEL.parameters()).device)
+        last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0, dtype=torch.int32).to(next(CUR_MODEL.parameters()).device)
 
         # use_cache
         CUR_MODEL.use_cache = use_cache
@@ -403,7 +403,7 @@ class Transformer_byt5(nn.Module):
             # stop by special tokens: 0, 1
             ends = outputs[:, -1] # last tokens
             ones_zeros = torch.where(ends < 2, 1, 0) # check all special tokens
-            stop = torch.equal(torch.sum(ones_zeros), torch.tensor(ends.shape[0]))
+            stop = torch.equal(torch.sum(ones_zeros).to(next(CUR_MODEL.parameters()).device), torch.tensor(ends.shape[0]).to(next(CUR_MODEL.parameters()).device))
             if stop:
                 break
 

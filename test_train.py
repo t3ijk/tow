@@ -22,7 +22,7 @@ with open(model_config_path, 'r') as f:
     config = json.load(f)
 
 model = None
-def test_train(device='cpu'):
+def test_train(device='cuda:5'):
     state_dict = torch.load(model_weights_path)
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
