@@ -115,8 +115,9 @@ def get_batch(size, datas, it_sample_offset, data_indexes_shuffled):
     # for i in range(len(labels_with_pads)):
     #     print(tk.ids2text(inputs_with_pads[i]), tk.ids2text(labels_with_pads[i]))
 
+    n_token = (max_in_ids + max_la_ids) * size
 
-    return inputs_with_pads, labels_with_pads   
+    return inputs_with_pads, labels_with_pads, n_token   
 
 def save_checkpoints(it_info,
                     checkpoints_path,
@@ -214,7 +215,9 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
             it_cur_estimate_loss = torch.tensor(it_info['it_cur_estimate_loss'])
             it_min_estimate_loss = torch.tensor(it_info['it_min_estimate_loss'])
             it_cur_step_num = it_info['it_cur_step_num']
-            it_cur_iter_num = it_info['it_cur_iter_num']            
+            it_cur_iter_num = it_info['it_cur_iter_num']
+            it_tokens_consumed = it_info['it_tokens_consumed'] 
+                      
             it_index_of_epoch_resume = it_info['it_index_of_epoch']
             it_sample_offset_resume = it_info['it_sample_offset']
             it_step_num_cur_epoch_resume = it_info['it_step_num_cur_epoch']
@@ -249,7 +252,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         it_cur_step_num = 0
         # gradient descent steps, count optimizer.step(), ~= it_cur_step_num / gradient_accumulation_steps
         it_cur_iter_num = 0
-        # loop for n_epoch
+        it_tokens_consumed = 0
 
         it_index_of_epoch_resume = 0
 
@@ -282,9 +285,10 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
 
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
-                    inputs, labels = get_batch(train_config.batch_size, datas, it_sample_offset, data_indexes_shuffled)
+                    inputs, labels, n_token = get_batch(train_config.batch_size, datas, it_sample_offset, data_indexes_shuffled)
                     input_ids = torch.tensor(inputs)
                     label_ids = torch.tensor(labels)
+                    it_tokens_consumed += n_token
 
                     # model forward
                     _, loss = model(input_ids, label_ids)
@@ -336,6 +340,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                         'it_steps_per_epoch': it_steps_per_epoch,
                         'it_index_of_epoch': it_index_of_epoch,
                         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
+                        'it_tokens_consumed': it_tokens_consumed,
                         'out_log_path': out_log_path,
                         'is_resume_training': is_resume_training,
                     }    
