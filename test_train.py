@@ -11,18 +11,18 @@ from src.model_byt5.train import train_loop
 import shutil
 import os
 
-# model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
-# model_config_path = "./test_models/byt5-small/config.json"
+model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
+model_config_path = "./test_models/byt5-small/config.json"
 
-model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
-model_config_path = "./test_models/byt5-large/config.json"
+# model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
+# model_config_path = "./test_models/byt5-large/config.json"
 
 config = None
 with open(model_config_path, 'r') as f:
     config = json.load(f)
 
 model = None
-def test_train():
+def test_train(device='cpu'):
     state_dict = torch.load(model_weights_path)
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
@@ -43,7 +43,7 @@ def test_train():
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
     batch_size = 10
-    train_loop(model, datas, checkpoints_path, n_epoch, batch_size)
+    train_loop(model, datas, checkpoints_path, n_epoch, batch_size, device=device)
     # train_loop(model, datas, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
 
 test_train()

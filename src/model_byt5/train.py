@@ -62,14 +62,14 @@ def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
 def prepare_datas():
     pass
 
-def estimate_loss(model):
+def estimate_loss(model, device):
     out = {}
     model.eval()
     inputs = [[y + 3 for y in 'This is training a LLM model! '.encode("utf-8")]]
     outputs = [[258, *[y + 3 for y in '这是训练LLM模型！'.encode("utf-8")], 1]]
     # batches = [[inputs, outputs]]
-    input_ids = torch.tensor(inputs)
-    label_ids = torch.tensor(outputs)
+    input_ids = torch.tensor(inputs).to(torch.device(device))
+    label_ids = torch.tensor(outputs).to(torch.device(device))
     _, loss = model(input_ids, label_ids)
     model.train()
     return loss
@@ -179,7 +179,7 @@ class Train_config:
     steps_for_estimate_loss: int = 25
     gradient_accumulation_steps: int = 2
 
-def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_path=None):
+def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu'):
 
     model: Transformer_byt5
 
@@ -212,8 +212,8 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         with open(f'{resume_path}/it_info.json') as f:
             it_info = json.load(f)
             print('Resumed it_info:', it_info)
-            it_cur_estimate_loss = torch.tensor(it_info['it_cur_estimate_loss'])
-            it_min_estimate_loss = torch.tensor(it_info['it_min_estimate_loss'])
+            it_cur_estimate_loss = torch.tensor(it_info['it_cur_estimate_loss']).to(torch.device(device))
+            it_min_estimate_loss = torch.tensor(it_info['it_min_estimate_loss']).to(torch.device(device))
             it_cur_step_num = it_info['it_cur_step_num']
             it_cur_iter_num = it_info['it_cur_iter_num']
             it_tokens_consumed = it_info['it_tokens_consumed'] 
@@ -246,8 +246,8 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
         fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
         
-        it_cur_estimate_loss = torch.tensor(-1)
-        it_min_estimate_loss = torch.tensor(999)
+        it_cur_estimate_loss = torch.tensor(-1).to(torch.device(device))
+        it_min_estimate_loss = torch.tensor(999).to(torch.device(device))
         # all steps, count model.forward()
         it_cur_step_num = 0
         # gradient descent steps, count optimizer.step(), ~= it_cur_step_num / gradient_accumulation_steps
@@ -255,6 +255,10 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         it_tokens_consumed = 0
 
         it_index_of_epoch_resume = 0
+
+
+        # set device
+        model.to(torch.device(device))
 
     for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
 
@@ -286,8 +290,8 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
                     inputs, labels, n_token = get_batch(train_config.batch_size, datas, it_sample_offset, data_indexes_shuffled)
-                    input_ids = torch.tensor(inputs)
-                    label_ids = torch.tensor(labels)
+                    input_ids = torch.tensor(inputs).to(torch.device(device))
+                    label_ids = torch.tensor(labels).to(torch.device(device))
                     it_tokens_consumed += n_token
 
                     # model forward
@@ -332,7 +336,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                 it_cur_iter_num += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
-                    it_cur_estimate_loss = estimate_loss(model)
+                    it_cur_estimate_loss = estimate_loss(model, device)
                     log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}"
                     print(log)
                     log_write(fd, log+'\n')
