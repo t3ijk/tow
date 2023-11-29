@@ -323,7 +323,7 @@ class Transformer_byt5(nn.Module):
         self.use_cache = False
 
     def get_attention_mask(self, seq_length):
-        seq_ids = torch.arange(seq_length)
+        seq_ids = torch.arange(seq_length).to(next(CUR_MODEL.parameters()).device)
         causal_mask = seq_ids[None, :].repeat(1, seq_length, 1) <= seq_ids[None, :, None]
         causal_mask = causal_mask.to(torch.float32).unsqueeze(0)
         causal_mask = (1.0 - causal_mask) * torch.finfo(torch.float32).min
