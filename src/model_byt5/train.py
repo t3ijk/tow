@@ -138,11 +138,11 @@ def save_checkpoints(it_info,
         with open(f"{fold}/it_info.json", "w") as f:
             json.dump(it_info, f, indent=4)  
 
-def log_format(train_config, it_index_of_epoch, steps, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps):
+def log_format(train_config, it_index_of_epoch, steps, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps, it_tokens_consumed):
     progress = "{:.4f}".format(it_cur_step_num/all_steps)
     lr_2 = "{:.5e}".format(lr)
     h = "{:.2f}".format(delta_t * remain_steps / 3600)
-    return f"{it_index_of_epoch}/{train_config.n_epoch}-{steps}/{it_steps_per_epoch}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'h', {h}"
+    return f"{it_index_of_epoch}/{train_config.n_epoch}-{steps}/{it_steps_per_epoch}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'tks', {it_tokens_consumed}, 'h', {h}"
 
 def log_write(fd, log):
     os.write(fd, bytes(log, 'utf-8'))
@@ -299,7 +299,18 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                     
                     all_steps = train_config.n_epoch * it_steps_per_epoch
                     remain_steps = all_steps - it_cur_step_num
-                    log = log_format(train_config, it_index_of_epoch, it_step_num_cur_epoch, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps)
+                    log = log_format(train_config,
+                                     it_index_of_epoch,
+                                     it_step_num_cur_epoch,
+                                     it_steps_per_epoch,
+                                     it_cur_step_num,
+                                     lr,
+                                     all_steps,
+                                     loss,
+                                     now,
+                                     delta_t,
+                                     remain_steps,
+                                     it_tokens_consumed)
                     print(log)
                     log_write(fd, log+'\n')
                     loss = loss / train_config.gradient_accumulation_steps
@@ -353,4 +364,5 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
        
     os.close(fd)
 
+    print('all_tokens_consumed: ', it_tokens_consumed)
     print('Training is completed')                    
