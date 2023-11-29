@@ -42,12 +42,16 @@
         }
 
         function handleFromToFilter(ts, from, to) {
-            if (from > 0 && ts < from) {
-                return true
+            if (ts <= 0) {
+                return true // disposal
             }
 
-            if (to > 0 && ts > to) {
-                return true
+            if (from != null && ts < from) {
+                return true // disposal
+            }
+
+            if (to != null && ts > to) {
+                return true // disposal
             }
             return false
         }
@@ -57,15 +61,15 @@
         let cumulated_gap_offset = 0
         function handleMaxGap(ts, maxGap) {
             let gap = 0
-            if (last_ts > 0) {
+            if (last_ts != null) {
                 gap = ts - last_ts
             }
-            last_ts = ts
-            if (maxGap > 0 && gap > maxGap) {
+            if (maxGap != null && gap > maxGap) {
                 cumulated_gap_offset = (gap - maxGap) + cumulated_gap_offset
             }
-
-            return ts - cumulated_gap_offset
+            new_ts = ts - cumulated_gap_offset
+            last_ts = new_ts
+            return new_ts
         }
 
 
@@ -84,7 +88,6 @@
             let data = [[], [], [], [], [], [], []];
 
             var index = 0
-            let last_ts = null
             lines.forEach(line => {
                 values = line.split(' ').join('').split(',')
 
@@ -118,7 +121,7 @@
 
 
             });
-            console.log('len: ', data[0].length)
+            console.log('len: ', data[0].length, data)
             return data;
         }
 
