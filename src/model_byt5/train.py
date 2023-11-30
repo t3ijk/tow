@@ -14,6 +14,7 @@ from src.model_byt5.tokenizer import Tokenizer_byt5
 from dataclasses import dataclass, asdict
 import re
 import random
+import gc
 
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
@@ -365,7 +366,10 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                                      train_config,
                                      is_minimal_loss,
                                      optimizer)
-       
+                # ?
+                # https://discuss.pytorch.org/t/about-torch-cuda-empty-cache/34232/19
+                gc.collect()
+                torch.cuda.empty_cache()     
     os.close(fd)
 
     print('all_tokens_consumed: ', it_tokens_consumed)

@@ -50,3 +50,13 @@ logits torch.Size([1, 6, 3, 3]) (tensor(inf, grad_fn=<VarMeanBackward0>), tensor
 logits torch.Size([1, 6, 3, 5]) (tensor(1.6484, grad_fn=<VarMeanBackward0>), tensor(-0.7373, grad_fn=<VarMeanBackward0>))
 tensor(11.7353, grad_fn=<NllLossBackward0>) deltaT 0.39883923530578613
 ```
+
+### log
+10.12am 11/29/23
+    small
+    small shuffle
+    big (not completed)
+    small gpu
+    big cpu
+10.41am 11/30/23
+    big gpu batch-size 5
