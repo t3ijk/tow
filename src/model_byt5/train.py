@@ -231,7 +231,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         train_config.batch_size = batch_size_
         train_config.n_epoch = n_epoch_
         train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
-        train_config.warmup_iters = math.floor(train_config.max_iters / 300)
+        train_config.warmup_iters = math.floor(train_config.max_iters / 30)
         train_config.lr_decay_iters = train_config.max_iters
 
         safe_check(model, checkpoints_path, train_config)

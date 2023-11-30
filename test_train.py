@@ -37,12 +37,12 @@ def test_train():
     model = model.train()
     # print_model_info(model)
 
-    with open('./datas/datas-v3.json', 'r') as f:
+    with open('./datas/datas-v5.json', 'r') as f:
         datas = json.load(f)
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
-    batch_size = 10
+    batch_size = 5
 
 
     device = 'cpu'
