@@ -37,7 +37,7 @@ def test_train():
     model = model.train()
     # print_model_info(model)
 
-    with open('./datas/datas-v2.json', 'r') as f:
+    with open('./datas/datas-v3.json', 'r') as f:
         datas = json.load(f)
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
