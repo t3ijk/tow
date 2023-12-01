@@ -60,9 +60,6 @@ def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-def prepare_datas():
-    pass
-
 def estimate_loss(model, device):
     out = {}
     model.eval()
@@ -76,7 +73,7 @@ def estimate_loss(model, device):
     return loss
 
 
-def get_batch(size, datas, it_sample_offset, data_indexes_shuffled):
+def get_batch(size, training_data, it_sample_offset, data_indexes_shuffled):
     inputs = []
     labels = []
 
@@ -85,7 +82,7 @@ def get_batch(size, datas, it_sample_offset, data_indexes_shuffled):
 
     for index in data_indexes_shuffled[it_sample_offset:it_sample_offset+size]:
         # get data from index
-        data = datas[index]
+        data = training_data[index]
         in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 1, 258]
         la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")], 1]
         if len(in_ids) > max_in_ids:
@@ -180,7 +177,7 @@ class Train_config:
     steps_for_estimate_loss: int = 25
     gradient_accumulation_steps: int = 2
 
-def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu'):
+def train_loop(model_, training_data, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu'):
 
     model: Transformer_byt5
 
@@ -227,7 +224,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
         print('is_resume_training', is_resume_training)
         model = model_
         train_config = Train_config()
-        train_config.n_sample = len(datas)
+        train_config.n_sample = len(training_data)
         train_config.batch_size = batch_size_
         train_config.n_epoch = n_epoch_
         train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
@@ -290,7 +287,7 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
 
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
-                    inputs, labels, n_token = get_batch(train_config.batch_size, datas, it_sample_offset, data_indexes_shuffled)
+                    inputs, labels, n_token = get_batch(train_config.batch_size, training_data, it_sample_offset, data_indexes_shuffled)
                     input_ids = torch.tensor(inputs).to(torch.device(device))
                     label_ids = torch.tensor(labels).to(torch.device(device))
                     it_tokens_consumed += n_token
