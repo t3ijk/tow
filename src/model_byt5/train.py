@@ -75,6 +75,8 @@ def estimate_loss(model, validation_data, device):
     #     print(tk.ids2text(inputs_with_pads[i]), tk.ids2text(labels_with_pads[i]))
     n = len(validation_data)
     loss_all = torch.zeros([n]).to(torch.device(device))
+
+    texts = []
     for index, data in enumerate(validation_data):
         input_ids = [[*[y + 3 for y in data[0].encode("utf-8")], 1, 258]]
         label_ids = [[258, *[y + 3 for y in data[1].encode("utf-8")], 1]]
@@ -83,12 +85,11 @@ def estimate_loss(model, validation_data, device):
         output_logits, loss = model(input_ids, label_ids)
         values, indices = output_logits.topk(1)
         outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
-        texts = f"{tk.ids2text(input_ids.tolist()[0])}\n↓↓↓\n{tk.ids2text(outputs.tolist()[0])}"
-        texts = re.sub("\n", "|-nl-|", texts)
+        text = f"{tk.ids2text(input_ids.tolist()[0])}\n↓↓↓\n{tk.ids2text(outputs.tolist()[0])}"
+        texts.append(text)
         loss_all[index] = loss
-            
     model.train()
-    return torch.mean(loss_all), texts
+    return torch.mean(loss_all), re.sub("\n", "|-nl-|", ''.join(texts))
 
 
 def get_batch(size, training_data, it_sample_offset, data_indexes_shuffled):
