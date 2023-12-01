@@ -174,9 +174,17 @@ def log_write(fd, log):
 def safe_check(model, checkpoints_path, train_config):
     print(train_config)
     print(model.byt5config)
+    print('parameters sum: ', sum(p.numel() for p in model.parameters()))
+    isExist = os.path.exists(checkpoints_path)
+    if not isExist:
+        # Create a new directory because it does not exist
+        os.makedirs(checkpoints_path)
+        print("The new directory is created!", checkpoints_path)
+
     dir = os.listdir(checkpoints_path)
     if len(dir) != 0:
         raise Exception(f"The directory is not empty. You may need to back up checkpoints and then clear the directory. {checkpoints_path}")
+    
     
 @dataclass
 class Train_config:
@@ -203,6 +211,7 @@ class Train_config:
 
 
 def freeze_encoder(model):
+    print('freeze_encoder')
     for n, p in model.named_parameters():
         if n.startswith("encoder") or n.startswith("shared"):
             p.requires_grad = False
