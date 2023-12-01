@@ -54,7 +54,7 @@ def estimate_loss():
         values, indices = output_logits.topk(1)
         outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
 
-        print('==============x, y, y^: ')
+        print(f"{index}==============x, y, y^: ")
         print(tk.ids2text(input_ids.tolist()[0]))
         print('-------')
         print(tk.ids2text(label_ids.tolist()[0]))
