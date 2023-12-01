@@ -42,6 +42,7 @@ def estimate_loss():
     if torch.cuda.device_count() > 0 :
         device = 'cuda:5'
     model.eval()
+    model.to(torch.device(device))
     tk  = Tokenizer_byt5()
     texts = []
     for index, data in enumerate(validation_data):
