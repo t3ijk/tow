@@ -79,7 +79,7 @@ def estimate_loss(model, validation_data, device):
     texts = []
     for index, data in enumerate(validation_data):
         input_ids = [[*[y + 3 for y in data[0].encode("utf-8")], 1, 258]]
-        label_ids = [[258, *[y + 3 for y in data[1].encode("utf-8")], 1]]
+        label_ids = [[258, *[y + 3 for y in data[1].encode("utf-8")], 1, 257]]
         input_ids = torch.tensor(input_ids).to(torch.device(device))
         label_ids = torch.tensor(label_ids).to(torch.device(device))
         output_logits, loss = model(input_ids, label_ids)
@@ -103,7 +103,7 @@ def get_batch(size, training_data, it_sample_offset, data_indexes_shuffled):
         # get data from index
         data = training_data[index]
         in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 1, 258]
-        la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")], 1]
+        la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")], 1, 257]
         if len(in_ids) > max_in_ids:
             max_in_ids = len(in_ids)
         if len(la_ids) > max_la_ids:
