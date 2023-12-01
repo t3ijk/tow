@@ -11,11 +11,11 @@ from src.model_byt5.train import train_loop
 import shutil
 import os
 
-model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
-model_config_path = "./test_models/byt5-small/config.json"
+# model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
+# model_config_path = "./test_models/byt5-small/config.json"
 
-# model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
-# model_config_path = "./test_models/byt5-large/config.json"
+model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
+model_config_path = "./test_models/byt5-large/config.json"
 
 config = None
 with open(model_config_path, 'r') as f:
@@ -37,8 +37,15 @@ def test_train():
     model = model.train()
     # print_model_info(model)
 
+    training_data = None
+    validation_data = None
+
     with open('./datas/datas-v6.json', 'r') as f:
-        training_data = json.load(f)
+        data = json.load(f)
+        validation_data = data[0: 10]
+        training_data = data[10:]
+
+
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
@@ -48,7 +55,7 @@ def test_train():
     device = 'cpu'
     if torch.cuda.device_count() > 0 :
         device = 'cuda:5'
-    train_loop(model, training_data, checkpoints_path, n_epoch, batch_size, device=device)
-    # train_loop(model, datas, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
+    train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, device=device)
+    # train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
 
 test_train()

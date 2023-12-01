@@ -60,17 +60,35 @@ def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-def estimate_loss(model, device):
+def estimate_loss(model, validation_data, device):
     out = {}
     model.eval()
-    inputs = [[y + 3 for y in 'This is training a LLM model! '.encode("utf-8")]]
-    outputs = [[258, *[y + 3 for y in '这是训练LLM模型！'.encode("utf-8")], 1]]
-    # batches = [[inputs, outputs]]
-    input_ids = torch.tensor(inputs).to(torch.device(device))
-    label_ids = torch.tensor(outputs).to(torch.device(device))
-    _, loss = model(input_ids, label_ids)
+    # inputs = [[y + 3 for y in 'This is training a LLM model! '.encode("utf-8")]]
+    # outputs = [[258, *[y + 3 for y in '这是训练LLM模型！'.encode("utf-8")], 1]]
+    # # batches = [[inputs, outputs]]
+    # input_ids = torch.tensor(inputs).to(torch.device(device))
+    # label_ids = torch.tensor(outputs).to(torch.device(device))
+    # _, loss = model(input_ids, label_ids)
+
+    tk  = Tokenizer_byt5()
+    # for i in range(len(labels_with_pads)):
+    #     print(tk.ids2text(inputs_with_pads[i]), tk.ids2text(labels_with_pads[i]))
+    n = len(validation_data)
+    loss_all = torch.zeros([n]).to(torch.device(device))
+    for index, data in enumerate(validation_data):
+        input_ids = [[*[y + 3 for y in data[0].encode("utf-8")], 1, 258]]
+        label_ids = [[258, *[y + 3 for y in data[1].encode("utf-8")], 1]]
+        input_ids = torch.tensor(input_ids).to(torch.device(device))
+        label_ids = torch.tensor(label_ids).to(torch.device(device))
+        output_logits, loss = model(input_ids, label_ids)
+        values, indices = output_logits.topk(1)
+        outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
+        texts = f"{tk.ids2text(input_ids.tolist()[0])}\n↓↓↓\n{tk.ids2text(outputs.tolist()[0])}"
+        texts = re.sub("\n", "|-nl-|", texts)
+        loss_all[index] = loss
+            
     model.train()
-    return loss
+    return torch.mean(loss_all), texts
 
 
 def get_batch(size, training_data, it_sample_offset, data_indexes_shuffled):
@@ -177,7 +195,7 @@ class Train_config:
     steps_for_estimate_loss: int = 25
     gradient_accumulation_steps: int = 2
 
-def train_loop(model_, training_data, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu'):
+def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu'):
 
     model: Transformer_byt5
 
@@ -334,8 +352,8 @@ def train_loop(model_, training_data, checkpoints_path, n_epoch_, batch_size_, r
                 it_cur_iter_num += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
-                    it_cur_estimate_loss = estimate_loss(model, device)
-                    log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}"
+                    it_cur_estimate_loss, texts = estimate_loss(model, validation_data, device)
+                    log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}, 'texts', {texts}"
                     print(log)
                     log_write(fd, log+'\n')
                     is_minimal_loss = False
