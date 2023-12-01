@@ -368,8 +368,8 @@ def train_loop(model_, datas, checkpoints_path, n_epoch_, batch_size_, resume_pa
                                      optimizer)
                 # ?
                 # https://discuss.pytorch.org/t/about-torch-cuda-empty-cache/34232/19
-                gc.collect()
-                torch.cuda.empty_cache()     
+                # gc.collect()
+                # torch.cuda.empty_cache()     
     os.close(fd)
 
     print('all_tokens_consumed: ', it_tokens_consumed)
