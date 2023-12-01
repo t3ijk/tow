@@ -85,7 +85,7 @@ def estimate_loss(model, validation_data, device):
         output_logits, loss = model(input_ids, label_ids)
         values, indices = output_logits.topk(1)
         outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
-        text = f"{tk.ids2text(input_ids.tolist()[0])}\n↓↓↓\n{tk.ids2text(outputs.tolist()[0])}"
+        text = f"{tk.ids2text(input_ids.tolist()[0])}\n↓↓↓\n{tk.ids2text(outputs.tolist()[0])}\n\n"
         texts.append(text)
         loss_all[index] = loss
     model.train()
