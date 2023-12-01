@@ -108,7 +108,7 @@
                     data[6][index] = beNumber(values[10])
                     index += 1
                 }
-                if (values.length == 4) {
+                if (line.includes("estimate_loss'")) {
                     ts = Math.floor(beNumber(values[3]))
                     if (handleFromToFilter(ts, from, to)) {
                         return
