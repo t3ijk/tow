@@ -11,11 +11,11 @@ from src.model_byt5.train import train_loop
 import shutil
 import os
 
-model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
-model_config_path = "./test_models/byt5-small/config.json"
+# model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
+# model_config_path = "./test_models/byt5-small/config.json"
 
-# model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
-# model_config_path = "./test_models/byt5-large/config.json"
+model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
+model_config_path = "./test_models/byt5-large/config.json"
 
 config = None
 with open(model_config_path, 'r') as f:

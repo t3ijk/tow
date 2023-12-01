@@ -18,6 +18,11 @@ import gc
 
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
+
+    freeze_encoder(model)
+
+
+
     # start with all of the candidate parameters
     param_dict = {pn: p for pn, p in model.named_parameters()}
     # filter out those that do not require grad
@@ -196,6 +201,12 @@ class Train_config:
     steps_for_estimate_loss: int = 25
     gradient_accumulation_steps: int = 2
 
+
+def freeze_encoder(model):
+    for n, p in model.named_parameters():
+        if n.startswith("encoder") or n.startswith("shared"):
+            p.requires_grad = False
+
 def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu'):
 
     model: Transformer_byt5
@@ -251,7 +262,6 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
         train_config.lr_decay_iters = train_config.max_iters
 
         safe_check(model, checkpoints_path, train_config)
-
         optimizer = configure_optimizers(model,
                                         train_config.weight_decay,
                                         train_config.learning_rate,
