@@ -40,7 +40,7 @@ def test_train():
     training_data = None
     validation_data = None
 
-    with open('./datas/datas-v6.json', 'r') as f:
+    with open('./datas/datas-v8.json', 'r') as f:
         data = json.load(f)
         validation_data = data[0: 10]
         training_data = data[10:]
