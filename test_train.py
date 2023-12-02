@@ -10,6 +10,13 @@ from src.utils import print_model_info, delete_files_in_directory
 from src.model_byt5.train import train_loop
 import shutil
 import os
+import pandas as pd
+import sys
+
+print(sys.argv)
+data_path = './datas/datas-v8.json'
+if len(sys.argv) == 2:
+    data_path = sys.argv[1]
 
 # model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
 # model_config_path = "./test_models/byt5-small/config.json"
@@ -40,12 +47,20 @@ def test_train():
     training_data = None
     validation_data = None
 
-    with open('./datas/datas-v8.json', 'r') as f:
-        data = json.load(f)
-        validation_data = data[0: 10]
-        training_data = data[10:]
-
-
+    data = []
+    print('data_path: ', data_path)
+    if data_path.endswith('tsv'):
+        data_df = pd.read_csv(data_path, sep='\t')
+        data = data_df.values.tolist()
+    elif data_path.endswith('csv'):
+            data_df = pd.read_csv(data_path)
+            data = data_df.values.tolist()
+    else:
+        with open('./datas/datas-v8.json', 'r') as f:
+            data = json.load(f)
+    
+    validation_data = data[0: 10]
+    training_data = data[10:]
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
