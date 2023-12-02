@@ -65,15 +65,12 @@ def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
+def safe_encode_utf8(txt):
+    return f"{txt}".encode("utf-8")
+
 def estimate_loss(model, validation_data, device):
     out = {}
     model.eval()
-    # inputs = [[y + 3 for y in 'This is training a LLM model! '.encode("utf-8")]]
-    # outputs = [[258, *[y + 3 for y in '这是训练LLM模型！'.encode("utf-8")], 1]]
-    # # batches = [[inputs, outputs]]
-    # input_ids = torch.tensor(inputs).to(torch.device(device))
-    # label_ids = torch.tensor(outputs).to(torch.device(device))
-    # _, loss = model(input_ids, label_ids)
 
     tk  = Tokenizer_byt5()
     # for i in range(len(labels_with_pads)):
@@ -83,8 +80,8 @@ def estimate_loss(model, validation_data, device):
 
     texts = []
     for index, data in enumerate(validation_data):
-        input_ids = [[*[y + 3 for y in data[0].encode("utf-8")], 1, 258]]
-        label_ids = [[258, *[y + 3 for y in data[1].encode("utf-8")], 1, 257]]
+        input_ids = [[*[y + 3 for y in safe_encode_utf8(data[0])], 1, 258]]
+        label_ids = [[258, *[y + 3 for y in safe_encode_utf8(data[1])], 1, 257]]
         input_ids = torch.tensor(input_ids).to(torch.device(device))
         label_ids = torch.tensor(label_ids).to(torch.device(device))
         output_logits, loss = model(input_ids, label_ids)
@@ -107,8 +104,8 @@ def get_batch(size, training_data, it_sample_offset, data_indexes_shuffled):
     for index in data_indexes_shuffled[it_sample_offset:it_sample_offset+size]:
         # get data from index
         data = training_data[index]
-        in_ids = [*[y + 3 for y in data[0].encode("utf-8")], 1, 258]
-        la_ids = [258, *[y + 3 for y in data[1].encode("utf-8")], 1, 257]
+        in_ids = [*[y + 3 for y in safe_encode_utf8(data[0])], 1, 258]
+        la_ids = [258, *[y + 3 for y in safe_encode_utf8(data[1])], 1, 257]
         if len(in_ids) > max_in_ids:
             max_in_ids = len(in_ids)
         if len(la_ids) > max_la_ids:

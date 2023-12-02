@@ -64,7 +64,7 @@ def test_train():
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
     n_epoch = 20
-    batch_size = 5
+    batch_size = 20
 
 
     device = 'cpu'
