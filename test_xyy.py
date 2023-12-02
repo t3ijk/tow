@@ -35,7 +35,7 @@ def estimate_loss():
 
     with open('./datas/datas-v6.json', 'r') as f:
         data = json.load(f)
-        validation_data = data[10: 20]
+        validation_data = data[0: 20]
         training_data = data[10:]
 
     device = 'cpu'
