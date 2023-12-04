@@ -13,16 +13,25 @@ import os
 import pandas as pd
 import sys
 
-print(sys.argv)
-data_path = './datas/datas-v8.json'
-if len(sys.argv) == 2:
-    data_path = sys.argv[1]
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--base_model", default=None, help="base-model path")
+parser.add_argument("--datasets", default=None, help="datasets path")
+parser.add_argument("--n_epoch", default=5, help="n_epoch")
+parser.add_argument("--batch_size", default=5, help="batch_size")
 
-# model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
-# model_config_path = "./test_models/byt5-small/config.json"
+args = parser.parse_args()
+print(args)
 
-model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
-model_config_path = "./test_models/byt5-large/config.json"
+if args.base_model is None or args.datasets is None:
+    print('error: the following arguments are required: --base_model, --datasets')
+
+base_model_path = args.base_model
+model_weights_path = f"{base_model_path}/pytorch_model.bin"
+model_config_path = f"{base_model_path}/config.json"
+data_path = args.datasets
+n_epoch = args.n_epoch
+batch_size = args.batch_size
 
 config = None
 with open(model_config_path, 'r') as f:
@@ -63,9 +72,6 @@ def test_train():
     training_data = data[10:]
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
-    n_epoch = 20
-    batch_size = 20
-
 
     device = 'cpu'
     if torch.cuda.device_count() > 0 :
