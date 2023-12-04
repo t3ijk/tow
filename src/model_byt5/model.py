@@ -322,8 +322,8 @@ class Transformer_byt5(nn.Module):
         self.mask_for_masked_attention = None
         self.use_cache = False
 
-    def get_attention_mask(self, seq_length):
-        seq_ids = torch.arange(seq_length).to(next(CUR_MODEL.parameters()).device)
+    def get_attention_mask(self, seq_length, device):
+        seq_ids = torch.arange(seq_length).to(device)
         causal_mask = seq_ids[None, :].repeat(1, seq_length, 1) <= seq_ids[None, :, None]
         causal_mask = causal_mask.to(torch.float32).unsqueeze(0)
         causal_mask = (1.0 - causal_mask) * torch.finfo(torch.float32).min
@@ -351,7 +351,9 @@ class Transformer_byt5(nn.Module):
         shifted_input_ids[:, 0] = 0
 
         # decoder shared infos
-        CUR_MODEL.mask_for_masked_attention = self.get_attention_mask(shifted_input_ids.shape[1])
+        decoder_first_layer: DecoderLayer = CUR_MODEL.decoder[0]
+        decoder_first_layer_device = decoder_first_layer.normal1.weight.device
+        CUR_MODEL.mask_for_masked_attention = self.get_attention_mask(shifted_input_ids.shape[1], decoder_first_layer_device)
         if CUR_MODEL.use_cache:
             shifted_input_ids = shifted_input_ids[:,-1:]
             CUR_MODEL.mask_for_masked_attention = CUR_MODEL.mask_for_masked_attention[:,:,-1:,:]
