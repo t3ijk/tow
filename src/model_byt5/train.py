@@ -323,6 +323,10 @@ def train_loop(model_,
         # set device
         model.to(torch.device(device))
 
+        for layer in model.decoder:
+             layer.to(torch.device(device))
+        model.linear.to(torch.device(device))
+
 
     print('train loop will start with train_config: ', train_config)
     for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
