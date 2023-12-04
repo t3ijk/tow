@@ -389,8 +389,6 @@ class Transformer_byt5(nn.Module):
         # encode
         encoder_hidden_states = self.encode(inputs)
         # decode
-        batch_size = encoder_hidden_states.shape[0]
-        yield_ids = torch.zeros(batch_size, 0, dtype=torch.int32).to(next(CUR_MODEL.parameters()).device)
         last_outputs = torch.zeros(encoder_hidden_states.shape[0], 0, dtype=torch.int32).to(next(CUR_MODEL.parameters()).device)
 
         # use_cache
