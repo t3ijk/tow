@@ -94,14 +94,14 @@ def estimate_loss(model, validation_data, device):
     return torch.mean(loss_all), re.sub("\n", "|-nl-|", ''.join(texts))
 
 
-def get_batch(size, training_data, it_sample_offset, data_indexes_shuffled):
+def get_batch(size, training_data, it_cur_sample_offset, data_indexes_shuffled):
     inputs = []
     labels = []
 
     max_in_ids = 0
     max_la_ids = 0
 
-    for index in data_indexes_shuffled[it_sample_offset:it_sample_offset+size]:
+    for index in data_indexes_shuffled[it_cur_sample_offset:it_cur_sample_offset+size]:
         # get data from index
         data = training_data[index]
         in_ids = [*[y + 3 for y in safe_encode_utf8(data[0])], 1, 258]
@@ -157,11 +157,25 @@ def save_checkpoints(it_info,
         with open(f"{fold}/it_info.json", "w") as f:
             json.dump(it_info, f, indent=4)  
 
-def log_format(train_config, it_index_of_epoch, steps, it_steps_per_epoch, it_cur_step_num, lr, all_steps, loss, now, delta_t, remain_steps, it_tokens_consumed):
-    progress = "{:.4f}".format(it_cur_step_num/all_steps)
+def log_format(train_config,
+            it_index_of_epoch,
+            it_ministep_index_cur_epoch,
+            it_ministep_num_per_epoch,
+            it_cur_ministep_index,
+            it_cur_iter_index,
+            lr,
+            all_ministep_num,
+            it_cur_sample_offset,
+            all_sample_num,
+            loss,
+            now,
+            delta_t,
+            remain_steps,
+            it_tokens_consumed):
+    progress = "{:.4f}".format(it_cur_ministep_index/all_ministep_num)
     lr_2 = "{:.5e}".format(lr)
     h = "{:.2f}".format(delta_t * remain_steps / 3600)
-    return f"{it_index_of_epoch}/{train_config.n_epoch}-{steps}/{it_steps_per_epoch}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'tks', {it_tokens_consumed}, 'h', {h}"
+    return f"{it_index_of_epoch}/{train_config.n_epoch}-{it_ministep_index_cur_epoch}/{it_ministep_num_per_epoch}-{it_cur_sample_offset}/{all_sample_num}-{it_cur_iter_index}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'tks', {it_tokens_consumed}, 'h', {h}"
 
 def log_write(fd, log):
     os.write(fd, bytes(log, 'utf-8'))
@@ -248,13 +262,13 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
             print('Resumed it_info:', it_info)
             it_cur_estimate_loss = torch.tensor(it_info['it_cur_estimate_loss']).to(torch.device(device))
             it_min_estimate_loss = torch.tensor(it_info['it_min_estimate_loss']).to(torch.device(device))
-            it_cur_step_num = it_info['it_cur_step_num']
-            it_cur_iter_num = it_info['it_cur_iter_num']
+            it_cur_ministep_index = it_info['it_cur_ministep_index']
+            it_cur_iter_index = it_info['it_cur_iter_index']
             it_tokens_consumed = it_info['it_tokens_consumed'] 
                       
             it_index_of_epoch_resume = it_info['it_index_of_epoch']
-            it_sample_offset_resume = it_info['it_sample_offset']
-            it_step_num_cur_epoch_resume = it_info['it_step_num_cur_epoch']
+            it_cur_sample_offset_resume = it_info['it_cur_sample_offset']
+            it_ministep_index_cur_epoch_resume = it_info['it_ministep_index_cur_epoch']
     
     else:
         print('is_resume_training', is_resume_training)
@@ -264,7 +278,7 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
         train_config.batch_size = batch_size_
         train_config.n_epoch = n_epoch_
         train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
-        train_config.warmup_iters = math.floor(train_config.max_iters / 30)
+        train_config.warmup_iters = 2000
         train_config.lr_decay_iters = train_config.max_iters
 
         safe_check(model, checkpoints_path, train_config)
@@ -282,9 +296,9 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
         it_cur_estimate_loss = torch.tensor(-1).to(torch.device(device))
         it_min_estimate_loss = torch.tensor(999).to(torch.device(device))
         # all steps, count model.forward()
-        it_cur_step_num = 0
-        # gradient descent steps, count optimizer.step(), ~= it_cur_step_num / gradient_accumulation_steps
-        it_cur_iter_num = 0
+        it_cur_ministep_index = 0
+        # gradient descent steps, count optimizer.step(), ~= it_cur_ministep_index / gradient_accumulation_steps
+        it_cur_iter_index = 0
         it_tokens_consumed = 0
 
         it_index_of_epoch_resume = 0
@@ -302,14 +316,14 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
     
         # only the resumed epoch is special
         is_resumed_epoch = is_resume_training and it_index_of_epoch == it_index_of_epoch_resume
-        it_sample_offset = it_sample_offset_resume if is_resumed_epoch else 0
-        it_step_num_cur_epoch = it_step_num_cur_epoch_resume if is_resumed_epoch else 0
-        it_steps_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
+        it_cur_sample_offset = it_cur_sample_offset_resume if is_resumed_epoch else 0
+        it_ministep_index_cur_epoch = it_ministep_index_cur_epoch_resume if is_resumed_epoch else 0
+        it_ministep_num_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
         
         # loop for n_sample
-        while train_config.n_sample - it_sample_offset >= train_config.batch_size * train_config.gradient_accumulation_steps:
+        while train_config.n_sample - it_cur_sample_offset >= train_config.batch_size * train_config.gradient_accumulation_steps:
                 # determine and set the learning rate for this iteration
-                lr = get_lr(it_cur_iter_num,
+                lr = get_lr(it_cur_iter_index,
                             train_config.warmup_iters,
                             train_config.learning_rate,
                             train_config.lr_decay_iters,
@@ -322,7 +336,7 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
 
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
-                    inputs, labels, n_token = get_batch(train_config.batch_size, training_data, it_sample_offset, data_indexes_shuffled)
+                    inputs, labels, n_token = get_batch(train_config.batch_size, training_data, it_cur_sample_offset, data_indexes_shuffled)
                     input_ids = torch.tensor(inputs).to(torch.device(device))
                     label_ids = torch.tensor(labels).to(torch.device(device))
                     it_tokens_consumed += n_token
@@ -334,15 +348,19 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
                     delta_t = now - last_t
                     last_t = now
                     
-                    all_steps = train_config.n_epoch * it_steps_per_epoch
-                    remain_steps = all_steps - it_cur_step_num
+                    all_ministep_num = train_config.n_epoch * it_ministep_num_per_epoch
+                    remain_steps = all_ministep_num - it_cur_ministep_index
+                    all_sample_num = train_config.n_sample
                     log = log_format(train_config,
                                      it_index_of_epoch,
-                                     it_step_num_cur_epoch,
-                                     it_steps_per_epoch,
-                                     it_cur_step_num,
+                                     it_ministep_index_cur_epoch,
+                                     it_ministep_num_per_epoch,
+                                     it_cur_ministep_index,
+                                     it_cur_iter_index,
                                      lr,
-                                     all_steps,
+                                     all_ministep_num,
+                                     it_cur_sample_offset,
+                                     all_sample_num,
                                      loss,
                                      now,
                                      delta_t,
@@ -353,9 +371,9 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
                     loss = loss / train_config.gradient_accumulation_steps
                     loss.backward()
                     # update steps counter
-                    it_sample_offset += train_config.batch_size
-                    it_step_num_cur_epoch += 1
-                    it_cur_step_num += 1 
+                    it_cur_sample_offset += train_config.batch_size
+                    it_ministep_index_cur_epoch += 1
+                    it_cur_ministep_index += 1 
 
                 if train_config.grad_clip != 0.0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
@@ -363,10 +381,10 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
                 optimizer.zero_grad(set_to_none=True)
                 
                 
-                # use it_cur_iter_num to flag need_estimate_loss
-                if it_cur_iter_num % train_config.steps_for_estimate_loss == 0:
+                # use it_cur_iter_index to flag need_estimate_loss
+                if it_cur_iter_index % train_config.steps_for_estimate_loss == 0:
                     need_estimate_loss = True
-                it_cur_iter_num += 1
+                it_cur_iter_index += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
                     it_cur_estimate_loss, texts = estimate_loss(model, validation_data, device)
@@ -381,11 +399,11 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
                     it_info = {
                         'it_cur_estimate_loss': it_cur_estimate_loss.tolist(),
                         'it_min_estimate_loss': it_min_estimate_loss.tolist(),
-                        'it_cur_step_num': it_cur_step_num,
-                        'it_cur_iter_num': it_cur_iter_num,
-                        'it_sample_offset': it_sample_offset,
-                        'it_step_num_cur_epoch': it_step_num_cur_epoch,
-                        'it_steps_per_epoch': it_steps_per_epoch,
+                        'it_cur_ministep_index': it_cur_ministep_index,
+                        'it_cur_iter_index': it_cur_iter_index,
+                        'it_cur_sample_offset': it_cur_sample_offset,
+                        'it_ministep_index_cur_epoch': it_ministep_index_cur_epoch,
+                        'it_ministep_num_per_epoch': it_ministep_num_per_epoch,
                         'it_index_of_epoch': it_index_of_epoch,
                         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
                         'it_tokens_consumed': it_tokens_consumed,
