@@ -324,14 +324,14 @@ def train_loop(model_,
     model.to(torch.device(device))
 
     for layer in model.decoder:
-            layer.to(torch.device(device))
-    model.linear.to(torch.device(device))
+            layer.to(torch.device('cuda:6'))
+    model.decoder_final_layer_norm.to(torch.device('cuda:6'))
+    model.decoder_final_layer_norm.to(torch.device('cuda:6'))
+    model.linear.to(torch.device('cuda:6'))
 
-    check_device = False
-    if check_device:
-        param_dict = {pn: p for pn, p in model.named_parameters()}
-        for pn, p in param_dict.items():
-            print(pn, p.device)
+    # param_dict = {pn: p for pn, p in model.named_parameters()}
+    # for pn, p in param_dict.items():
+    #     print(pn, p.device)
 
     print('train loop will start with train_config: ', train_config)
     for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
