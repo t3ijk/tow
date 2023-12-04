@@ -10,11 +10,11 @@ from src.utils import print_model_info, delete_files_in_directory
 from src.model_byt5.train import train_loop
 import shutil
 import os
-# model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
-# model_config_path = "./test_models/byt5-small/config.json"
+model_weights_path = "./test_models/byt5-small/pytorch_model.bin"
+model_config_path = "./test_models/byt5-small/config.json"
 
-model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
-model_config_path = "./test_models/byt5-large/config.json"
+# model_weights_path = "./test_models/byt5-large/pytorch_model.bin"
+# model_config_path = "./test_models/byt5-large/config.json"
 
 config = None
 with open(model_config_path, 'r') as f:
@@ -57,7 +57,7 @@ def test_model():
     print('--------------------------------')
     model = Transformer_byt5(config=config)
    
-    print(model)
+    # print(model)
     input_ids = torch.tensor([list("12345".encode("utf-8"))]) + 3  # add 3 for special tokens
     labels = torch.tensor([list("123".encode("utf-8"))]) + 3  # add 3 for special tokens
     out_infos = model(input_ids, labels)
@@ -165,7 +165,7 @@ def test_generate2(use_cache):
 # tokenizer_tests()
 # test_model()
 # tensor(5.0514, grad_fn=<NllLossBackward0>) deltaT 0.43586087226867676
-# test_model_1(False)
+test_model_1(False)
 # test_generate2(False)
 # test_generate2(True)
 
@@ -239,4 +239,4 @@ def test_eval():
         
 
 
-test_eval()
+# test_eval()
