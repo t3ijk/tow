@@ -17,6 +17,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--base_model", default=None, help="base-model path")
 parser.add_argument("-d", "--datasets", default=None, help="datasets path")
+parser.add_argument("-i", "--info", default=None, help="information of current experiment or experiment purpose")
 parser.add_argument("--n_epoch", default=5, help="n_epoch")
 parser.add_argument("--batch_size", default=5, help="batch_size")
 parser.add_argument("--validation_data_size", default=10, help="validation_data_size")
@@ -30,6 +31,10 @@ print(args)
 if args.base_model is None or args.datasets is None:
     print('error: the following arguments are required: --base_model, --datasets')
     exit(0)
+
+if args.info is None:
+    print('error: the following arguments are required: --info, eg: for testing large batch size.')
+    exit(0)    
 
 base_model_path = args.base_model
 model_weights_path = f"{base_model_path}/pytorch_model.bin"
