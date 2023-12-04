@@ -360,6 +360,9 @@ class Transformer_byt5(nn.Module):
         # mask all -100(label pads) to real pad_token 0
         shifted_input_ids.masked_fill_(shifted_input_ids == -100, 0)
         decoder_hidden_states = self.shared_embedding(shifted_input_ids)
+
+        decoder_hidden_states.to(decoder_first_layer_device)
+        encoder_hidden_states.to(decoder_first_layer_device)
         layer: DecoderLayer
         for i, layer in enumerate(self.decoder):
             decoder_hidden_states = layer(decoder_hidden_states, encoder_hidden_states)
@@ -378,6 +381,9 @@ class Transformer_byt5(nn.Module):
         loss = None
         predicts = logits.view(-1, logits.size(-1))
         labels = labels.view(-1)
+        decoder_first_layer: DecoderLayer = CUR_MODEL.decoder[0]
+        decoder_first_layer_device = decoder_first_layer.normal1.weight.device
+        labels.to(decoder_first_layer_device)
         loss = nn.CrossEntropyLoss(ignore_index=-100)(predicts, labels)
         return logits, loss
 
