@@ -22,12 +22,14 @@ parser.add_argument("--batch_size", default=5, help="batch_size")
 parser.add_argument("--validation_data_size", default=10, help="validation_data_size")
 parser.add_argument("--steps_for_estimate_loss", default=300, help="steps_for_estimate_loss")
 parser.add_argument("--gradient_accumulation_steps", default=2, help="validation_data_size")
+parser.add_argument("--warmup_iters", default=3000, help="warmup_iters")
 
 args = parser.parse_args()
 print(args)
 
 if args.base_model is None or args.datasets is None:
     print('error: the following arguments are required: --base_model, --datasets')
+    exit(0)
 
 base_model_path = args.base_model
 model_weights_path = f"{base_model_path}/pytorch_model.bin"
@@ -38,6 +40,7 @@ batch_size = args.batch_size
 validation_data_size = args.validation_data_size 
 steps_for_estimate_loss_ = args.steps_for_estimate_loss
 gradient_accumulation_steps_ = args.gradient_accumulation_steps
+warmup_iters_ = args.warmup_iters
 
 config = None
 with open(model_config_path, 'r') as f:
@@ -84,10 +87,22 @@ def test_train():
     device = 'cpu'
     if torch.cuda.device_count() > 0 :
         device = 'cuda:5'
-    
-    # def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu', steps_for_estimate_loss_=None, gradient_accumulation_steps_=None):
 
-    train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, device=device, steps_for_estimate_loss_=steps_for_estimate_loss_, gradient_accumulation_steps_=gradient_accumulation_steps_)
+
+    train_loop(model,
+                training_data,
+                validation_data,
+                checkpoints_path,
+                n_epoch,
+                batch_size,
+                resume_path=None,
+                device=device,
+                steps_for_estimate_loss_=steps_for_estimate_loss_,
+                gradient_accumulation_steps_=gradient_accumulation_steps_,
+                warmup_iters_=warmup_iters_)     
+        
+
+    # train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, device=device, steps_for_estimate_loss_=steps_for_estimate_loss_, gradient_accumulation_steps_=gradient_accumulation_steps_)
     # train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
 
 test_train()

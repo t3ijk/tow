@@ -228,7 +228,17 @@ def freeze_encoder(model):
         if n.startswith("encoder") or n.startswith("shared"):
             p.requires_grad = False
 
-def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu', steps_for_estimate_loss_=None, gradient_accumulation_steps_=None):
+def train_loop(model_,
+               training_data,
+               validation_data,
+               checkpoints_path,
+               n_epoch_,
+               batch_size_,
+               resume_path=None,
+               device='cpu',
+               steps_for_estimate_loss_=None,
+               gradient_accumulation_steps_=None,
+               warmup_iters_=None):
 
     model: Transformer_byt5
 
@@ -279,12 +289,13 @@ def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch
         train_config.batch_size = batch_size_
         train_config.n_epoch = n_epoch_
         train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
-        train_config.warmup_iters = 2000
         train_config.lr_decay_iters = train_config.max_iters
         if steps_for_estimate_loss_ is not None:
             train_config.steps_for_estimate_loss = steps_for_estimate_loss_
         if gradient_accumulation_steps_ is not None:
-            train_config.gradient_accumulation_steps = gradient_accumulation_steps_    
+            train_config.gradient_accumulation_steps = gradient_accumulation_steps_
+        if warmup_iters_ is not None:
+            train_config.warmup_iters = warmup_iters_    
 
         safe_check(model, checkpoints_path, train_config)
         optimizer = configure_optimizers(model,
