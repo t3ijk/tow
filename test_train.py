@@ -12,13 +12,14 @@ import shutil
 import os
 import pandas as pd
 import sys
-
+import random
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--base_model", default=None, help="base-model path")
-parser.add_argument("--datasets", default=None, help="datasets path")
+parser.add_argument("-b", "--base_model", default=None, help="base-model path")
+parser.add_argument("-d", "--datasets", default=None, help="datasets path")
 parser.add_argument("--n_epoch", default=5, help="n_epoch")
 parser.add_argument("--batch_size", default=5, help="batch_size")
+parser.add_argument("--validation_data_size", default=10, help="validation_data_size")
 
 args = parser.parse_args()
 print(args)
@@ -32,6 +33,7 @@ model_config_path = f"{base_model_path}/config.json"
 data_path = args.datasets
 n_epoch = args.n_epoch
 batch_size = args.batch_size
+validation_data_size = args.validation_data_size 
 
 config = None
 with open(model_config_path, 'r') as f:
@@ -68,8 +70,10 @@ def test_train():
         with open('./datas/datas-v8.json', 'r') as f:
             data = json.load(f)
     
-    validation_data = data[0: 10]
-    training_data = data[10:]
+
+    random.Random(0).shuffle(data)
+    validation_data = data[0: validation_data_size]
+    training_data = data[validation_data_size:]
     checkpoints_path = './checkpoints'
     # delete_files_in_directory(checkpoints_path)
 
