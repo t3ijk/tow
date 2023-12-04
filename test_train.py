@@ -20,6 +20,8 @@ parser.add_argument("-d", "--datasets", default=None, help="datasets path")
 parser.add_argument("--n_epoch", default=5, help="n_epoch")
 parser.add_argument("--batch_size", default=5, help="batch_size")
 parser.add_argument("--validation_data_size", default=10, help="validation_data_size")
+parser.add_argument("--steps_for_estimate_loss", default=2, help="steps_for_estimate_loss")
+parser.add_argument("--gradient_accumulation_steps", default=300, help="validation_data_size")
 
 args = parser.parse_args()
 print(args)
@@ -34,6 +36,8 @@ data_path = args.datasets
 n_epoch = args.n_epoch
 batch_size = args.batch_size
 validation_data_size = args.validation_data_size 
+steps_for_estimate_loss_ = args.steps_for_estimate_loss
+gradient_accumulation_steps_ = args.gradient_accumulation_steps
 
 config = None
 with open(model_config_path, 'r') as f:
@@ -80,7 +84,10 @@ def test_train():
     device = 'cpu'
     if torch.cuda.device_count() > 0 :
         device = 'cuda:5'
-    train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, device=device)
+    
+    # def train_loop(model_, training_data, validation_data, checkpoints_path, n_epoch_, batch_size_, resume_path=None, device='cpu', steps_for_estimate_loss_=None, gradient_accumulation_steps_=None):
+
+    train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, device=device, steps_for_estimate_loss_=steps_for_estimate_loss_, gradient_accumulation_steps_=gradient_accumulation_steps_)
     # train_loop(model, training_data, validation_data, checkpoints_path, n_epoch, batch_size, resume_path='./checkpoints-resume/last_loss')
 
 test_train()
