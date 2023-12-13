@@ -83,7 +83,7 @@ def test_train():
                 batch_size_=1,
                 resume_path=None,
                 device='cpu',
-                steps_for_estimate_loss_=2,
+                steps_for_estimate_loss_=2 if is_test else 1000,
                 gradient_accumulation_steps_=2,
                 warmup_iters_=3000)     
     
