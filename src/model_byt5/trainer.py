@@ -76,7 +76,6 @@ def estimate_loss(jsonl_f, model, validation_data, device):
     n = len(validation_data)
     loss_n = torch.zeros([n]).to(torch.device(device))
 
-    texts = []
     for index, pos in enumerate(validation_data):
         jsonl_f.seek(pos)
         line = jsonl_f.readline()
@@ -85,15 +84,16 @@ def estimate_loss(jsonl_f, model, validation_data, device):
         la_ids = lo['label'] 
         input_ids = torch.tensor([in_ids]).to(torch.device(device))
         label_ids = torch.tensor([la_ids]).to(torch.device(device))
-        print(input_ids, label_ids)
         output_logits, loss = model(input_ids, label_ids)
         values, indices = output_logits.topk(1)
         outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
-        text = f"[x={tk.ids2text(input_ids.tolist()[0])}y={tk.ids2text(label_ids.tolist()[0])}y*={tk.ids2text(outputs.tolist()[0])}]"
-        texts.append(text)
+        print('index: ', index)
+        print(tk.text_clean_special_tokens(tk.ids2text(input_ids.tolist()[0])))
+        print(tk.text_clean_special_tokens(tk.ids2text(label_ids.tolist()[0])))
+        print(tk.ids2text(outputs.tolist()[0]))
         loss_n[index] = loss
     model.train()
-    return torch.mean(loss_n), re.sub("\n", "__nl__", ''.join(texts))
+    return torch.mean(loss_n)
 
 def get_batch(jsonl_f, size, training_data, it_cur_sample_offset, data_indexes_shuffled):
     inputs = []
@@ -384,8 +384,8 @@ def train_loop(model_,
                 it_cur_iter_index += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
-                    it_cur_estimate_loss, texts = estimate_loss(jsonl_f, model, validation_data, device)
-                    log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}, 'texts', {texts}"
+                    it_cur_estimate_loss = estimate_loss(jsonl_f, model, validation_data, device)
+                    log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}"
                     print(log)
                     log_write(fd, log+'\n')
                     is_minimal_loss = False

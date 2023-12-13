@@ -134,7 +134,7 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data_files, ddp_
             else:
                 print('\nlast line?', line)    
 
-        print('lines', line_index) 
+        print('all lines', line_index) 
         fh.close()
 
         if ddp_rank == 0:
