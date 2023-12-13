@@ -34,12 +34,6 @@ class Tokenizer_byt5:
                 encoded = str.encode('utf-8')
                 results.extend([chr(code) for code in bytearray(encoded)])
 
-        # not auto add eos_token 
-        # if results[-1] in [self.eos_token, self.unk_token, self.pad_token]:
-        #     pass
-        # else:
-        #     results.append(self.eos_token)
-
         return results
 
     def tokens2ids(self, tokens):
@@ -80,7 +74,11 @@ class Tokenizer_byt5:
             {"extra_tokens": self.extra_tokens},
         ]
         return config
+    
+    def __call__(self, text, max_length):
+
+        ids = self.text2ids(text)
+        ids = ids[:max_length-1]
+        ids.append(1)
+        return ids
        
-    # def utf8string2ids(self, utf8str):
-    #     offset = 3
-    #     return [x + offset for x in list(utf8str.encode("utf-8"))]

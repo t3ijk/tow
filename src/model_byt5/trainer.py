@@ -19,9 +19,7 @@ import gc
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
 
-    freeze_encoder(model)
-
-
+    # freeze_encoder(model)
 
     # start with all of the candidate parameters
     param_dict = {pn: p for pn, p in model.named_parameters()}
@@ -68,22 +66,26 @@ def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
 def safe_encode_utf8(txt):
     return f"{txt}".encode("utf-8")
 
-def estimate_loss(model, validation_data, device):
+def estimate_loss(jsonl_f, model, validation_data, device):
+    print('estimate_loss...')
     out = {}
     model.eval()
 
     tk  = Tokenizer_byt5()
-    # for i in range(len(labels_with_pads)):
-    #     print(tk.ids2text(inputs_with_pads[i]), tk.ids2text(labels_with_pads[i]))
+
     n = len(validation_data)
     loss_n = torch.zeros([n]).to(torch.device(device))
 
     texts = []
-    for index, data in enumerate(validation_data):
-        input_ids = [[*[y + 3 for y in safe_encode_utf8(data[0])], 1, 258]]
-        label_ids = [[258, *[y + 3 for y in safe_encode_utf8(data[1])], 1, 257]]
-        input_ids = torch.tensor(input_ids).to(torch.device(device))
-        label_ids = torch.tensor(label_ids).to(torch.device(device))
+    for index, pos in enumerate(validation_data):
+        jsonl_f.seek(pos)
+        line = jsonl_f.readline()
+        lo = json.loads(line)
+        in_ids = lo['input']
+        la_ids = lo['label'] 
+        input_ids = torch.tensor([in_ids]).to(torch.device(device))
+        label_ids = torch.tensor([la_ids]).to(torch.device(device))
+        print(input_ids, label_ids)
         output_logits, loss = model(input_ids, label_ids)
         values, indices = output_logits.topk(1)
         outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
@@ -93,50 +95,26 @@ def estimate_loss(model, validation_data, device):
     model.train()
     return torch.mean(loss_n), re.sub("\n", "__nl__", ''.join(texts))
 
-
-def get_batch(size, training_data, it_cur_sample_offset, data_indexes_shuffled):
+def get_batch(jsonl_f, size, training_data, it_cur_sample_offset, data_indexes_shuffled):
     inputs = []
     labels = []
 
-    max_in_ids = 0
-    max_la_ids = 0
+    in_ids_len = 0
+    la_ids_len = 0
 
     for index in data_indexes_shuffled[it_cur_sample_offset:it_cur_sample_offset+size]:
         # get data from index
-        data = training_data[index]
-        in_ids = [*[y + 3 for y in safe_encode_utf8(data[0])], 1, 258]
-        la_ids = [258, *[y + 3 for y in safe_encode_utf8(data[1])], 1, 257]
-        if len(in_ids) > max_in_ids:
-            max_in_ids = len(in_ids)
-        if len(la_ids) > max_la_ids:
-            max_la_ids = len(la_ids)            
+        jsonl_f.seek(training_data[index])
+        line = jsonl_f.readline()
+        lo = json.loads(line)
+        in_ids = lo['input']
+        la_ids = lo['label']    
+        in_ids_len = len(in_ids)
+        la_ids_len = len(in_ids)        
         inputs.append(in_ids)
         labels.append(la_ids)
-
-
-
-    inputs_with_pads = []
-    for l in inputs:
-        n_pads = max_in_ids - len(l)
-        l = [*l, *[0 for _ in range(n_pads)]]
-        inputs_with_pads.append(l)
-
-    labels_with_pads = []
-    for l in labels:
-        n_pads = max_la_ids - len(l)
-        l = [*l, *[-100 for _ in range(n_pads)]]
-        labels_with_pads.append(l) 
-
-
-    # print(inputs_with_pads)
-    # print(labels_with_pads)  
-    # tk  = Tokenizer_byt5()
-    # for i in range(len(labels_with_pads)):
-    #     print(tk.ids2text(inputs_with_pads[i]), tk.ids2text(labels_with_pads[i]))
-
-    n_token = (max_in_ids + max_la_ids) * size
-
-    return inputs_with_pads, labels_with_pads, n_token   
+    n_token = (in_ids_len + la_ids_len) * size
+    return inputs, labels, n_token   
 
 def save_checkpoints(it_info,
                     checkpoints_path,
@@ -222,13 +200,14 @@ class Train_config:
     gradient_accumulation_steps: int = 2
 
 
-def freeze_encoder(model):
-    print('freeze_encoder')
-    for n, p in model.named_parameters():
-        if n.startswith("encoder") or n.startswith("shared"):
-            p.requires_grad = False
+# def freeze_encoder(model):
+#     print('freeze_encoder')
+#     for n, p in model.named_parameters():
+#         if n.startswith("encoder") or n.startswith("shared"):
+#             p.requires_grad = False
 
 def train_loop(model_,
+               preprocessed_data_path,
                training_data,
                validation_data,
                checkpoints_path,
@@ -239,7 +218,8 @@ def train_loop(model_,
                steps_for_estimate_loss_=None,
                gradient_accumulation_steps_=None,
                warmup_iters_=None):
-
+    
+    jsonl_f = open(preprocessed_data_path, "r")
     model: Transformer_byt5
 
     is_resume_training = resume_path is not None
@@ -323,16 +303,6 @@ def train_loop(model_,
     # set device
     model.to(torch.device(device))
 
-    for layer in model.decoder:
-            layer.to(torch.device('cuda:6'))
-    model.decoder_final_layer_norm.to(torch.device('cuda:6'))
-    model.decoder_final_layer_norm.to(torch.device('cuda:6'))
-    model.linear.to(torch.device('cuda:6'))
-
-    # param_dict = {pn: p for pn, p in model.named_parameters()}
-    # for pn, p in param_dict.items():
-    #     print(pn, p.device)
-
     print('train loop will start with train_config: ', train_config)
     for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
 
@@ -363,7 +333,7 @@ def train_loop(model_,
 
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
-                    inputs, labels, n_token = get_batch(train_config.batch_size, training_data, it_cur_sample_offset, data_indexes_shuffled)
+                    inputs, labels, n_token = get_batch(jsonl_f, train_config.batch_size, training_data, it_cur_sample_offset, data_indexes_shuffled)
                     input_ids = torch.tensor(inputs).to(torch.device(device))
                     label_ids = torch.tensor(labels).to(torch.device(device))
                     it_tokens_consumed += n_token
@@ -414,7 +384,7 @@ def train_loop(model_,
                 it_cur_iter_index += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
-                    it_cur_estimate_loss, texts = estimate_loss(model, validation_data, device)
+                    it_cur_estimate_loss, texts = estimate_loss(jsonl_f, model, validation_data, device)
                     log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}, 'texts', {texts}"
                     print(log)
                     log_write(fd, log+'\n')
