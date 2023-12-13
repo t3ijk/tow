@@ -68,6 +68,7 @@ def safe_encode_utf8(txt):
 
 def estimate_loss(jsonl_f, model, validation_data, device):
     print('estimate_loss...')
+    return None
     out = {}
     model.eval()
 
@@ -91,8 +92,6 @@ def estimate_loss(jsonl_f, model, validation_data, device):
         print(index, [tk.text_clean_special_tokens(tk.ids2text(label_ids.tolist()[0]))])
         print(index, [tk.ids2text(outputs.tolist()[0])])
         loss_n[index] = loss
-        gc.collect()
-        torch.cuda.empty_cache()
     model.train()
     return torch.mean(loss_n)
 
