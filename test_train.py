@@ -82,7 +82,7 @@ def test_train():
                 n_epoch_=1,
                 batch_size_=1,
                 resume_path=None,
-                device='cpu',
+                device='cuda:0',
                 steps_for_estimate_loss_=2 if is_test else 1000,
                 gradient_accumulation_steps_=2,
                 warmup_iters_=3000)     
