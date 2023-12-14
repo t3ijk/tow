@@ -217,7 +217,7 @@ class Train_config:
     n_sample: int = 0
     batch_size: int = 0
     n_epoch: int = 0
-    steps_for_estimate_loss: int = 25
+    n_iters_for_estimate_loss: int = 25
     gradient_accumulation_steps: int = 2
 
 
@@ -236,7 +236,7 @@ def train_loop(model_,
                batch_size_,
                resume_path=None,
                device='cpu',
-               steps_for_estimate_loss_=None,
+               n_iters_for_estimate_loss_=None,
                gradient_accumulation_steps_=None,
                warmup_iters_=None):
     
@@ -291,8 +291,8 @@ def train_loop(model_,
         train_config.n_epoch = n_epoch_
         train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
         train_config.lr_decay_iters = train_config.max_iters
-        if steps_for_estimate_loss_ is not None:
-            train_config.steps_for_estimate_loss = steps_for_estimate_loss_
+        if n_iters_for_estimate_loss_ is not None:
+            train_config.n_iters_for_estimate_loss = n_iters_for_estimate_loss_
         if gradient_accumulation_steps_ is not None:
             train_config.gradient_accumulation_steps = gradient_accumulation_steps_
         if warmup_iters_ is not None:
@@ -401,7 +401,7 @@ def train_loop(model_,
                 # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
                 
                 # use it_cur_iter_index to flag need_estimate_loss
-                if it_cur_iter_index % train_config.steps_for_estimate_loss == 0:
+                if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 0:
                     need_estimate_loss = True
                 
                 if need_estimate_loss:
