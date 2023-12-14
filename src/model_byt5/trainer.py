@@ -144,12 +144,12 @@ def save_checkpoints(it_info,
 
 def log_format(train_config,
             it_index_of_epoch,
-            it_ministep_index_cur_epoch,
-            it_ministep_num_per_epoch,
-            it_cur_ministep_index,
+            it_micro_step_index_cur_epoch,
+            it_micro_step_num_per_epoch,
+            it_cur_micro_step_index,
             it_cur_iter_index,
             lr,
-            all_ministep_num,
+            all_micro_step_num,
             it_cur_sample_offset,
             all_sample_num,
             loss,
@@ -159,7 +159,7 @@ def log_format(train_config,
             it_tokens_consumed,
             it_cur_estimate_loss):
     
-    progress = "{:.4f}".format(it_cur_ministep_index/all_ministep_num)
+    progress = "{:.4f}".format(it_cur_micro_step_index/all_micro_step_num)
     lr_2 = "{:.5e}".format(lr)
     h = "{:.2f}".format(delta_t * remain_steps / 3600)
 
@@ -168,7 +168,7 @@ def log_format(train_config,
 
     info = {
         'ep': f'{it_index_of_epoch}/{train_config.n_epoch}',
-        'st': f'{it_ministep_index_cur_epoch}/{it_ministep_num_per_epoch}',
+        'st': f'{it_micro_step_index_cur_epoch}/{it_micro_step_num_per_epoch}',
         'sa': f'{it_cur_sample_offset}/{all_sample_num}',
         'iter': it_cur_iter_index,
         'pro': progress,
@@ -274,13 +274,13 @@ def train_loop(model_,
             print('Resumed it_info:', it_info)
             it_cur_estimate_loss = torch.tensor(it_info['it_cur_estimate_loss']).to(torch.device(device))
             it_min_estimate_loss = torch.tensor(it_info['it_min_estimate_loss']).to(torch.device(device))
-            it_cur_ministep_index = it_info['it_cur_ministep_index']
+            it_cur_micro_step_index = it_info['it_cur_micro_step_index']
             it_cur_iter_index = it_info['it_cur_iter_index']
             it_tokens_consumed = it_info['it_tokens_consumed'] 
                       
             it_index_of_epoch_resume = it_info['it_index_of_epoch']
             it_cur_sample_offset_resume = it_info['it_cur_sample_offset']
-            it_ministep_index_cur_epoch_resume = it_info['it_ministep_index_cur_epoch']
+            it_micro_step_index_cur_epoch_resume = it_info['it_micro_step_index_cur_epoch']
     
     else:
         print('is_resume_training', is_resume_training)
@@ -313,8 +313,8 @@ def train_loop(model_,
         it_cur_estimate_loss = torch.tensor(-1.0).to(torch.device(device))
         it_min_estimate_loss = torch.tensor(999.0).to(torch.device(device))
         # all steps, count model.forward()
-        it_cur_ministep_index = 0
-        # gradient descent steps, count optimizer.step(), ~= it_cur_ministep_index / gradient_accumulation_steps
+        it_cur_micro_step_index = 0
+        # gradient descent steps, count optimizer.step(), ~= it_cur_micro_step_index / gradient_accumulation_steps
         it_cur_iter_index = 0
         it_tokens_consumed = 0
 
@@ -334,8 +334,8 @@ def train_loop(model_,
         # only the resumed epoch is special
         is_resumed_epoch = is_resume_training and it_index_of_epoch == it_index_of_epoch_resume
         it_cur_sample_offset = it_cur_sample_offset_resume if is_resumed_epoch else 0
-        it_ministep_index_cur_epoch = it_ministep_index_cur_epoch_resume if is_resumed_epoch else 0
-        it_ministep_num_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
+        it_micro_step_index_cur_epoch = it_micro_step_index_cur_epoch_resume if is_resumed_epoch else 0
+        it_micro_step_num_per_epoch = math.floor(train_config.n_sample / train_config.batch_size)
         
         # loop for n_sample
         while train_config.n_sample - it_cur_sample_offset >= train_config.batch_size * train_config.gradient_accumulation_steps:
@@ -365,17 +365,17 @@ def train_loop(model_,
                     delta_t = now - last_t
                     last_t = now
                     
-                    all_ministep_num = train_config.n_epoch * it_ministep_num_per_epoch
-                    remain_steps = all_ministep_num - it_cur_ministep_index
+                    all_micro_step_num = train_config.n_epoch * it_micro_step_num_per_epoch
+                    remain_steps = all_micro_step_num - it_cur_micro_step_index
                     all_sample_num = train_config.n_sample
                     log = log_format(train_config,
                                      it_index_of_epoch,
-                                     it_ministep_index_cur_epoch,
-                                     it_ministep_num_per_epoch,
-                                     it_cur_ministep_index,
+                                     it_micro_step_index_cur_epoch,
+                                     it_micro_step_num_per_epoch,
+                                     it_cur_micro_step_index,
                                      it_cur_iter_index,
                                      lr,
-                                     all_ministep_num,
+                                     all_micro_step_num,
                                      it_cur_sample_offset,
                                      all_sample_num,
                                      loss,
@@ -389,8 +389,8 @@ def train_loop(model_,
                     loss.backward()
                     # update steps counter
                     it_cur_sample_offset += train_config.batch_size
-                    it_ministep_index_cur_epoch += 1
-                    it_cur_ministep_index += 1 
+                    it_micro_step_index_cur_epoch += 1
+                    it_cur_micro_step_index += 1 
 
                 if train_config.grad_clip != 0.0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
@@ -417,11 +417,11 @@ def train_loop(model_,
                     it_info = {
                         'it_cur_estimate_loss': it_cur_estimate_loss.tolist(),
                         'it_min_estimate_loss': it_min_estimate_loss.tolist(),
-                        'it_cur_ministep_index': it_cur_ministep_index,
+                        'it_cur_micro_step_index': it_cur_micro_step_index,
                         'it_cur_iter_index': it_cur_iter_index,
                         'it_cur_sample_offset': it_cur_sample_offset,
-                        'it_ministep_index_cur_epoch': it_ministep_index_cur_epoch,
-                        'it_ministep_num_per_epoch': it_ministep_num_per_epoch,
+                        'it_micro_step_index_cur_epoch': it_micro_step_index_cur_epoch,
+                        'it_micro_step_num_per_epoch': it_micro_step_num_per_epoch,
                         'it_index_of_epoch': it_index_of_epoch,
                         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
                         'it_tokens_consumed': it_tokens_consumed,
