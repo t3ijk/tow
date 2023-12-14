@@ -66,9 +66,9 @@ def get_lr(it, warmup_iters, learning_rate, lr_decay_iters, min_lr):
 def safe_encode_utf8(txt):
     return f"{txt}".encode("utf-8")
 
-def estimate_loss(jsonl_f, model, validation_data, device):
-    print('estimate_loss...')
-    return None
+@torch.no_grad()
+def validate_loss(jsonl_f, model, validation_data, device):
+    print('validate_loss...')
     out = {}
     model.eval()
 
@@ -384,7 +384,7 @@ def train_loop(model_,
                 it_cur_iter_index += 1
                 if need_estimate_loss:
                     need_estimate_loss = False
-                    it_cur_estimate_loss = estimate_loss(jsonl_f, model, validation_data, device)
+                    it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
                     log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}"
                     print(log)
                     log_write(fd, log+'\n')
