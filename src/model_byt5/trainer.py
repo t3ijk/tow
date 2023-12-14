@@ -345,7 +345,7 @@ def train_loop(model_,
                 # Quickly verify a gradient iteration and checkpoints saving
                 if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 1 and is_master_process:
                     print('validate loss and save checkpoints...', it_cur_iter_index, train_config.n_iters_for_estimate_loss)
-                    it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
+                    it_cur_estimate_loss = validate_loss(jsonl_f, raw_model, validation_data, device)
                     is_minimal_loss = False
                     if it_cur_estimate_loss < it_min_estimate_loss:
                         it_min_estimate_loss = it_cur_estimate_loss
