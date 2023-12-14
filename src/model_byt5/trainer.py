@@ -265,10 +265,6 @@ def train_loop(model_,
         optimizer.load_state_dict(torch.load(f'{resume_path}/optimizer.bin'))
 
         last_t = time.time()
-        now_iso = datetime.datetime.utcnow().isoformat()
-        out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
-        fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
-
         with open(f'{resume_path}/it_info.json') as f:
             it_info = json.load(f)
             print('Resumed it_info:', it_info)
@@ -307,9 +303,6 @@ def train_loop(model_,
 
         last_t = time.time()
         now_iso = datetime.datetime.utcnow().isoformat()
-        out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
-        fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
-        
         it_cur_estimate_loss = torch.tensor(-1.0).to(torch.device(device))
         it_min_estimate_loss = torch.tensor(999.0).to(torch.device(device))
         # all steps, count model.forward()
@@ -405,10 +398,9 @@ def train_loop(model_,
                     need_estimate_loss = True
                 
                 if need_estimate_loss:
+                    print(it_cur_iter_index, train_config.n_iters_for_estimate_loss)
                     need_estimate_loss = False
                     it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
-                    log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}"
-                    print(log)
                     is_minimal_loss = False
                     if it_cur_estimate_loss < it_min_estimate_loss:
                         it_min_estimate_loss = it_cur_estimate_loss
@@ -425,7 +417,6 @@ def train_loop(model_,
                         'it_index_of_epoch': it_index_of_epoch,
                         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
                         'it_tokens_consumed': it_tokens_consumed,
-                        'out_log_path': out_log_path,
                         'is_resume_training': is_resume_training,
                     }    
                     save_checkpoints(it_info,
