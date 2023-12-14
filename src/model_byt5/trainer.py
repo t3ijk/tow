@@ -396,12 +396,14 @@ def train_loop(model_,
                     torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
-                
+                it_cur_iter_index += 1
+
+                # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
                 
                 # use it_cur_iter_index to flag need_estimate_loss
                 if it_cur_iter_index % train_config.steps_for_estimate_loss == 0:
                     need_estimate_loss = True
-                it_cur_iter_index += 1
+                
                 if need_estimate_loss:
                     need_estimate_loss = False
                     it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
