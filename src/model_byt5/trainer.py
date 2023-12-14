@@ -423,11 +423,5 @@ def train_loop(model_,
                 # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
                 
                 
-                # ?
-                # https://discuss.pytorch.org/t/about-torch-cuda-empty-cache/34232/19
-                # gc.collect()
-                # torch.cuda.empty_cache()     
-    os.close(fd)
-
     print('all_tokens_consumed: ', it_tokens_consumed)
     print('Training is completed')                    
