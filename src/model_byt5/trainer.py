@@ -180,7 +180,7 @@ def log_format(train_config,
     }
     return json.dumps(info)
 
-def safe_check(model, checkpoints_path, train_config):
+def prepare_env(model, checkpoints_path, train_config):
     print(train_config)
     print(model.byt5config)
     parameters_count = sum(p.numel() for p in model.parameters())
@@ -255,7 +255,7 @@ def train_loop(model_,
             cf = json.load(f)
             train_config = Train_config(**cf)
         
-        safe_check(model, checkpoints_path, train_config)
+        prepare_env(model, checkpoints_path, train_config)
         optimizer = configure_optimizers(model,
                                         train_config.weight_decay,
                                         train_config.learning_rate,
@@ -293,7 +293,7 @@ def train_loop(model_,
         if warmup_iters_ is not None:
             train_config.warmup_iters = warmup_iters_    
 
-        safe_check(model, checkpoints_path, train_config)
+        prepare_env(model, checkpoints_path, train_config)
         optimizer = configure_optimizers(model,
                                         train_config.weight_decay,
                                         train_config.learning_rate,

@@ -5,7 +5,7 @@ import torch
 import json
 from collections import OrderedDict
 import time
-from src.model_byt5.trainer import train_loop, safe_check
+from src.model_byt5.trainer import train_loop, prepare_env
 import shutil
 import os
 import pandas as pd
@@ -44,7 +44,6 @@ def get_model():
         model = Transformer_byt5(config=config)
         model.load_state_dict(state_dict_new)    
     model = model.train()
-    safe_check(model, checkpoints_path, config)
     return model
 
 def get_data(preprocessed_data_path):
@@ -64,13 +63,14 @@ def get_data(preprocessed_data_path):
 
 def test_train():
     model = get_model()
+    prepare_env(model, checkpoints_path, config)
     preprocessed_data_path = f"./preprocessed_data_tow_byt5.jsonl"
-    jsonl_positions_for_seek = get_data(preprocessed_data_path)
+    jsonl = get_data(preprocessed_data_path)
     n_val = 30
     train_loop(model,
                 preprocessed_data_path=preprocessed_data_path,
-                training_data=jsonl_positions_for_seek[n_val: ],  # train data
-                validation_data=jsonl_positions_for_seek[0: n_val], # validation data
+                training_data=jsonl[n_val: ],  # train data
+                validation_data=jsonl[0: n_val], # validation data
                 checkpoints_path=checkpoints_path,
                 n_epoch_=1,
                 batch_size_=1,
