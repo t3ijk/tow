@@ -15,6 +15,8 @@ from dataclasses import dataclass, asdict
 import re
 import random
 import gc
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
 
 # ref: karpathy/nanoGPT
 def configure_optimizers(model, weight_decay, learning_rate, betas, device_type):
@@ -315,6 +317,12 @@ def train_loop(model_,
     # set device
     model.to(torch.device(device))
 
+    is_ddp = env_info['is_ddp']
+    is_master_process = env_info['is_master_process']
+    raw_model = model
+    if is_ddp:
+        model = DDP(model, device_ids=[env_info['ddp_local_rank']])
+
     print('train loop will start with train_config: ', train_config)
     for it_index_of_epoch in range(it_index_of_epoch_resume, train_config.n_epoch):
 
@@ -333,7 +341,7 @@ def train_loop(model_,
         while train_config.n_sample - it_cur_sample_offset >= train_config.batch_size * train_config.gradient_accumulation_steps:
                 
                 # Quickly verify a gradient iteration and checkpoints saving
-                if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 1:
+                if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 1 and is_master_process:
                     print('validate loss and save checkpoints...', it_cur_iter_index, train_config.n_iters_for_estimate_loss)
                     it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
                     is_minimal_loss = False
@@ -356,7 +364,7 @@ def train_loop(model_,
                     }    
                     save_checkpoints(it_info,
                                      checkpoints_path,
-                                     model,
+                                     raw_model,
                                      train_config,
                                      is_minimal_loss,
                                      optimizer)
@@ -374,7 +382,12 @@ def train_loop(model_,
                             
 
                 # loop for gradient_accumulation_steps
-                for _ in range(train_config.gradient_accumulation_steps):
+                for micro_step_ in range(train_config.gradient_accumulation_steps):
+
+                    if is_ddp:
+                        # https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/train.py#L290
+                        model.require_backward_grad_sync = (micro_step_ == train_config.gradient_accumulation_steps - 1)
+
                     inputs, labels, n_token = get_batch(jsonl_f, train_config.batch_size, training_data, it_cur_sample_offset, data_indexes_shuffled)
                     input_ids = torch.tensor(inputs).to(torch.device(device))
                     label_ids = torch.tensor(labels).to(torch.device(device))
@@ -406,7 +419,9 @@ def train_loop(model_,
                                      remain_steps,
                                      it_tokens_consumed,
                                      it_cur_estimate_loss)
-                    print(log)
+                    
+                    if is_master_process:
+                        print(log)
                     loss = loss / train_config.gradient_accumulation_steps
                     loss.backward()
                     # update steps counter

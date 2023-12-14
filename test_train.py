@@ -14,6 +14,7 @@ import random
 from src.preprocess_data import preprocess_data
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
+from math import floor
 
 print(sys.argv)
 path = sys.argv[1]
@@ -65,8 +66,8 @@ def get_data(preprocessed_data_path):
 
 def get_env():
     env_info = dict(
-        ddp_rank=-1,
-        ddp_local_rank=-1,
+        ddp_rank=0,
+        ddp_local_rank=0,
         ddp_world_size=1,
         device='cpu',
         is_master_process = True,
@@ -90,10 +91,18 @@ def test_train():
     preprocessed_data_path = f"./preprocessed_data_tow_byt5.jsonl"
     jsonl = get_data(preprocessed_data_path)
     n_val = 30
+
+    jsonl_val = jsonl[0:n_val]
+    jsonl_tra_all = jsonl[n_val:]
+
+    ddp_rank = env_info['ddp_rank']
+    size = floor(len(jsonl_tra_all) / env_info['ddp_world_size'])
+    jsonl_tra = jsonl_tra_all[ddp_rank*size: (ddp_rank+1)*size]
+    print('ddp_rank, size, len(jsonl_tra): ', ddp_rank, size, len(jsonl_tra))
     train_loop(model,
                 preprocessed_data_path=preprocessed_data_path,
-                training_data=jsonl[n_val: ],  # train data
-                validation_data=jsonl[0: n_val], # validation data
+                training_data=jsonl_val,  # train data
+                validation_data=jsonl_tra, # validation data
                 checkpoints_path=checkpoints_path,
                 n_epoch_=1,
                 batch_size_=1,
