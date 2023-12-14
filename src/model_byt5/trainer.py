@@ -93,10 +93,10 @@ def validate_loss(jsonl_f, model, validation_data, device):
 
         # free generated outputs
         gen_outputs = model.generate(input_ids, max_length=1024, use_cache=True)
-        print(index, [tk.text_clean_special_tokens(tk.ids2text(input_ids.tolist()[0]))])
-        print(index, [tk.text_clean_special_tokens(tk.ids2text(label_ids.tolist()[0]))])
-        print(index, [tk.ids2text(outputs.tolist()[0])])
-        print(index, [tk.ids2text(gen_outputs.tolist()[0])])
+        print([index], [tk.text_clean_special_tokens(tk.ids2text(input_ids.tolist()[0]))])
+        print([tk.text_clean_special_tokens(tk.ids2text(label_ids.tolist()[0]))])
+        print(["{:.2}".format(loss.tolist()), tk.ids2text(outputs.tolist()[0])])
+        print([tk.ids2text(gen_outputs.tolist()[0])])
         loss_n[index] = loss
     model.train()
     return torch.mean(loss_n)

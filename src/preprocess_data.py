@@ -64,7 +64,7 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data_files, ddp_
         print(path, data_df["src"].value_counts()) 
   
     random.Random(0).shuffle(data)
-    print('len(data)', len(data))
+    print(f'len data: {len(data):,}')
 
     if is_test:
         data = data[0: 200]
@@ -87,8 +87,8 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data_files, ddp_
     LOOP_ALL_COUNT = len(all_texts) * 4 # tk_loop twice, labels and texts
     LOOP_CUR_COUNT = 0
 
-    print('len(all_texts)', len(all_texts))
-    print('len(all_labels)', len(all_labels))
+    print(f'len all_texts: {len(all_texts):,}')
+    print(f'len all_labels: {len(all_labels):,}')
 
     isExist = os.path.exists(preprocessed_data_path)
     if not isExist:

@@ -5,31 +5,20 @@ import torch
 import json
 from collections import OrderedDict
 import time
-from src.model_byt5.trainer import train_loop
+from src.model_byt5.trainer import train_loop, safe_check
 import shutil
 import os
 import pandas as pd
 import sys
 import random
-import argparse
 from src.preprocess_data import preprocess_data
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-b", "--base_model", default=None, help="base-model path")
-parser.add_argument("-i", "--info", default=None, help="test or train or experiment")
-
-args = parser.parse_args()
-print(args)
-
-if args.base_model is None:
-    print('error: the following arguments are required: --base_model')
-    exit(0)
-
-if args.info is None:
-    print('error: the following arguments are required: --info, eg: for testing large batch size.')
-    exit(0)    
-
-base_model_path = args.base_model
+print(sys.argv)
+path = sys.argv[1]
+is_test = sys.argv[2]
+is_test = is_test == 'test'
+checkpoints_path ='./checkpoints'
+base_model_path = path
 model_weights_path = f"{base_model_path}/pytorch_model.bin"
 model_config_path = f"{base_model_path}/config.json"
 
@@ -42,7 +31,7 @@ model = None
 def get_ddp_rank():
     return int(os.environ.get('RANK', -1))
 
-def test_train():
+def get_model():
     state_dict = torch.load(model_weights_path)
     state_dict_new = OrderedDict()
     for name, tensor_ in state_dict.items():
@@ -53,14 +42,13 @@ def test_train():
 
     if model is None:
         model = Transformer_byt5(config=config)
-        model.load_state_dict(state_dict_new)
+        model.load_state_dict(state_dict_new)    
     model = model.train()
-    # print_model_info(model)
+    safe_check(model, checkpoints_path, config)
+    return model
 
-    preprocessed_data_path = f"./preprocessed_data_tow_byt5.jsonl"
+def get_data(preprocessed_data_path):
     ddp_rank = get_ddp_rank()
-    is_test = args.info == 'test' 
-
     tsv1 = './data/wikititles-v3.zh-en.tsv'
     tsv2 = './data/news-commentary-v14.en-zh.cleaned.tsv'
     tsv3 = './data/TED2020.en_zh.tsv'
@@ -72,13 +60,18 @@ def test_train():
         ]
     
     jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data_files=files,ddp_rank=ddp_rank)
+    return jsonl_positions_for_seek
 
+def test_train():
+    model = get_model()
+    preprocessed_data_path = f"./preprocessed_data_tow_byt5.jsonl"
+    jsonl_positions_for_seek = get_data(preprocessed_data_path)
     n_val = 30
     train_loop(model,
                 preprocessed_data_path=preprocessed_data_path,
                 training_data=jsonl_positions_for_seek[n_val: ],  # train data
                 validation_data=jsonl_positions_for_seek[0: n_val], # validation data
-                checkpoints_path='./checkpoints',
+                checkpoints_path=checkpoints_path,
                 n_epoch_=1,
                 batch_size_=1,
                 resume_path=None,
