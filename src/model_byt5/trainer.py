@@ -149,16 +149,30 @@ def log_format(train_config,
             now,
             delta_t,
             remain_steps,
-            it_tokens_consumed):
+            it_tokens_consumed,
+            it_cur_estimate_loss):
+    
     progress = "{:.4f}".format(it_cur_ministep_index/all_ministep_num)
     lr_2 = "{:.5e}".format(lr)
     h = "{:.2f}".format(delta_t * remain_steps / 3600)
-    return f"{it_index_of_epoch}/{train_config.n_epoch}-{it_ministep_index_cur_epoch}/{it_ministep_num_per_epoch}-{it_cur_sample_offset}/{all_sample_num}-{it_cur_iter_index}-{progress}, 'loss:', {loss.tolist()}, 'ts', {now}, 'lr', {lr_2}, 'tks', {it_tokens_consumed}, 'h', {h}"
 
-def log_write(fd, log):
-    os.write(fd, bytes(log, 'utf-8'))
-    os.fsync(fd)
+    loss = "{:.4}".format(loss)
+    v_loss = "{:.4}".format(it_cur_estimate_loss)
 
+    info = {
+        'ep': f'{it_index_of_epoch}/{train_config.n_epoch}',
+        'st': f'{it_ministep_index_cur_epoch}/{it_ministep_num_per_epoch}',
+        'sa': f'{it_cur_sample_offset}/{all_sample_num}',
+        'iter': it_cur_iter_index,
+        'pro': progress,
+        'ls': loss,
+        'vls': v_loss,
+        'ts': now,
+        'lr': lr_2,
+        'tks': it_tokens_consumed,
+        'h': h
+    }
+    return json.dumps(info)
 
 def safe_check(model, checkpoints_path, train_config):
     print(train_config)
@@ -289,8 +303,8 @@ def train_loop(model_,
         out_log_path = f'out-{re.sub(r"[^0-9]", ".", now_iso)}.log'
         fd = os.open(out_log_path, os.O_RDWR | os.O_CREAT)
         
-        it_cur_estimate_loss = torch.tensor(-1).to(torch.device(device))
-        it_min_estimate_loss = torch.tensor(999).to(torch.device(device))
+        it_cur_estimate_loss = torch.tensor(-1.0).to(torch.device(device))
+        it_min_estimate_loss = torch.tensor(999.0).to(torch.device(device))
         # all steps, count model.forward()
         it_cur_ministep_index = 0
         # gradient descent steps, count optimizer.step(), ~= it_cur_ministep_index / gradient_accumulation_steps
@@ -298,7 +312,6 @@ def train_loop(model_,
         it_tokens_consumed = 0
 
         it_index_of_epoch_resume = 0
-
 
     # set device
     model.to(torch.device(device))
@@ -362,9 +375,9 @@ def train_loop(model_,
                                      now,
                                      delta_t,
                                      remain_steps,
-                                     it_tokens_consumed)
+                                     it_tokens_consumed,
+                                     it_cur_estimate_loss)
                     print(log)
-                    log_write(fd, log+'\n')
                     loss = loss / train_config.gradient_accumulation_steps
                     loss.backward()
                     # update steps counter
@@ -387,7 +400,6 @@ def train_loop(model_,
                     it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
                     log = f"'it_cur_estimate_loss', {it_cur_estimate_loss.tolist()}, 'ts', {time.time()}"
                     print(log)
-                    log_write(fd, log+'\n')
                     is_minimal_loss = False
                     if it_cur_estimate_loss < it_min_estimate_loss:
                         it_min_estimate_loss = it_cur_estimate_loss
