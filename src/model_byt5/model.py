@@ -417,7 +417,8 @@ class Transformer_byt5(nn.Module):
                 last_outputs = torch.cat((last_outputs, outputs), 1)
             else:
                 last_outputs = outputs
-
+        CUR_MODEL.use_cache = False
+        self.clean_caches()
         return last_outputs
 
 # global 

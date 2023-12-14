@@ -87,10 +87,16 @@ def validate_loss(jsonl_f, model, validation_data, device):
         label_ids = torch.tensor([la_ids]).to(torch.device(device))
         output_logits, loss = model(input_ids, label_ids)
         values, indices = output_logits.topk(1)
+
+        # teacher forcing outputs
         outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
+
+        # free generated outputs
+        gen_outputs = model.generate(input_ids, max_length=1024, use_cache=True)
         print(index, [tk.text_clean_special_tokens(tk.ids2text(input_ids.tolist()[0]))])
         print(index, [tk.text_clean_special_tokens(tk.ids2text(label_ids.tolist()[0]))])
         print(index, [tk.ids2text(outputs.tolist()[0])])
+        print(index, [tk.ids2text(gen_outputs.tolist()[0])])
         loss_n[index] = loss
     model.train()
     return torch.mean(loss_n)
