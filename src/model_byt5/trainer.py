@@ -180,7 +180,7 @@ def log_format(train_config,
     }
     return json.dumps(info)
 
-def prepare_env(model, checkpoints_path, train_config):
+def train_check(model, checkpoints_path, train_config):
     print(train_config)
     print(model.byt5config)
     parameters_count = sum(p.numel() for p in model.parameters())
@@ -194,7 +194,6 @@ def prepare_env(model, checkpoints_path, train_config):
     dir = os.listdir(checkpoints_path)
     if len(dir) != 0:
         raise Exception(f"The directory is not empty. You may need to back up checkpoints and then clear the directory. {checkpoints_path}")
-    
     
 @dataclass
 class Train_config:
@@ -233,11 +232,12 @@ def train_loop(model_,
                checkpoints_path,
                n_epoch_,
                batch_size_,
-               resume_path=None,
-               device='cpu',
-               n_iters_for_estimate_loss_=None,
-               gradient_accumulation_steps_=None,
-               warmup_iters_=None):
+               resume_path,
+               device,
+               n_iters_for_estimate_loss_,
+               gradient_accumulation_steps_,
+               warmup_iters_,
+               env_info):
     
     jsonl_f = open(preprocessed_data_path, "r")
     model: Transformer_byt5
@@ -255,7 +255,7 @@ def train_loop(model_,
             cf = json.load(f)
             train_config = Train_config(**cf)
         
-        prepare_env(model, checkpoints_path, train_config)
+        train_check(model, checkpoints_path, train_config)
         optimizer = configure_optimizers(model,
                                         train_config.weight_decay,
                                         train_config.learning_rate,
@@ -293,7 +293,7 @@ def train_loop(model_,
         if warmup_iters_ is not None:
             train_config.warmup_iters = warmup_iters_    
 
-        prepare_env(model, checkpoints_path, train_config)
+        train_check(model, checkpoints_path, train_config)
         optimizer = configure_optimizers(model,
                                         train_config.weight_decay,
                                         train_config.learning_rate,

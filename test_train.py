@@ -5,13 +5,15 @@ import torch
 import json
 from collections import OrderedDict
 import time
-from src.model_byt5.trainer import train_loop, prepare_env
+from src.model_byt5.trainer import train_loop, train_check
 import shutil
 import os
 import pandas as pd
 import sys
 import random
 from src.preprocess_data import preprocess_data
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
 
 print(sys.argv)
 path = sys.argv[1]
@@ -61,9 +63,30 @@ def get_data(preprocessed_data_path):
     jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data_files=files,ddp_rank=ddp_rank)
     return jsonl_positions_for_seek
 
+def get_env():
+    env_info = dict(
+        ddp_rank=-1,
+        ddp_local_rank=-1,
+        ddp_world_size=1,
+        device='cpu',
+        is_master_process = True,
+        is_ddp = False,
+        )
+    if get_ddp_rank() != -1:
+        env_info['is_ddp'] = True
+        init_process_group(backend='nccl')
+        env_info['ddp_rank'] = int(os.environ['RANK'])
+        env_info['ddp_local_rank'] = int(os.environ['LOCAL_RANK'])
+        env_info['ddp_world_size'] = int(os.environ['WORLD_SIZE'])
+        env_info['device'] = f'cuda:{env_info["ddp_local_rank"]}'
+        torch.cuda.set_device(env_info['device'])
+        env_info['is_master_process'] = env_info['ddp_rank'] == 0
+    return env_info    
+
 def test_train():
     model = get_model()
-    prepare_env(model, checkpoints_path, config)
+    train_check(model, checkpoints_path, config)
+    env_info = get_env()
     preprocessed_data_path = f"./preprocessed_data_tow_byt5.jsonl"
     jsonl = get_data(preprocessed_data_path)
     n_val = 30
@@ -75,9 +98,13 @@ def test_train():
                 n_epoch_=1,
                 batch_size_=1,
                 resume_path=None,
-                device='cpu',
+                device=env_info['device'],
                 n_iters_for_estimate_loss_=2 if is_test else 1000,
                 gradient_accumulation_steps_=2,
-                warmup_iters_=3000)     
+                warmup_iters_=3000,
+                env_info=env_info)
+    
+    if env_info['is_ddp']:
+        destroy_process_group()    
     
 test_train()
