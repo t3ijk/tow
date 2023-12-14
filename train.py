@@ -104,8 +104,8 @@ def test_train():
     print('ddp_rank, size, len(jsonl_tra): ', ddp_rank, size, len(jsonl_tra))
     train_loop(model,
                 preprocessed_data_path=preprocessed_data_path,
-                training_data=jsonl_val,  # train data
-                validation_data=jsonl_tra, # validation data
+                training_data=jsonl_tra,  # train data
+                validation_data=jsonl_val, # validation data
                 checkpoints_path=checkpoints_path,
                 n_epoch_=1,
                 batch_size_=1,
