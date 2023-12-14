@@ -144,21 +144,22 @@ def save_checkpoints(it_info,
             json.dump(it_info, f, indent=4)  
 
 def log_format(train_config,
-            it_index_of_epoch,
-            it_micro_step_index_cur_epoch,
-            it_micro_step_num_per_epoch,
-            it_cur_micro_step_index,
-            it_cur_iter_index,
-            lr,
-            all_micro_step_num,
-            it_cur_sample_offset,
-            all_sample_num,
-            loss,
-            now,
-            delta_t,
-            remain_steps,
-            it_tokens_consumed,
-            it_cur_estimate_loss):
+                it_index_of_epoch,
+                it_micro_step_index_cur_epoch,
+                it_micro_step_num_per_epoch,
+                it_cur_micro_step_index,
+                it_cur_iter_index,
+                lr,
+                all_micro_step_num,
+                it_cur_sample_offset,
+                all_sample_num,
+                loss,
+                now,
+                delta_t,
+                remain_steps,
+                it_tokens_consumed,
+                it_cur_estimate_loss,
+                env_info):
     
     progress = "{:.4f}".format(it_cur_micro_step_index/all_micro_step_num)
     lr_2 = "{:.5e}".format(lr)
@@ -168,6 +169,7 @@ def log_format(train_config,
     v_loss = "{:.4}".format(it_cur_estimate_loss)
 
     info = {
+        'ws': env_info['ddp_world_size'],
         'ep': f'{it_index_of_epoch}/{train_config.n_epoch}',
         'st': f'{it_micro_step_index_cur_epoch}/{it_micro_step_num_per_epoch}',
         'sa': f'{it_cur_sample_offset}/{all_sample_num}',
@@ -418,7 +420,8 @@ def train_loop(model_,
                                      delta_t,
                                      remain_steps,
                                      it_tokens_consumed,
-                                     it_cur_estimate_loss)
+                                     it_cur_estimate_loss,
+                                     env_info)
                     
                     if is_master_process:
                         print(log)
