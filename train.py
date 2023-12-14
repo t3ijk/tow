@@ -65,11 +65,14 @@ def get_data(preprocessed_data_path):
     return jsonl_positions_for_seek
 
 def get_env():
+    device = 'cpu'
+    if torch.cuda.device_count() > 0 :
+        device = 'cuda:0'
     env_info = dict(
         ddp_rank=0,
         ddp_local_rank=0,
         ddp_world_size=1,
-        device='cpu',
+        device=device,
         is_master_process = True,
         is_ddp = False,
         )
