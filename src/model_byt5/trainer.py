@@ -68,7 +68,6 @@ def safe_encode_utf8(txt):
 
 @torch.no_grad()
 def validate_loss(jsonl_f, model, validation_data, device):
-    print('validate_loss...')
     out = {}
     model.eval()
 
@@ -332,6 +331,37 @@ def train_loop(model_,
         
         # loop for n_sample
         while train_config.n_sample - it_cur_sample_offset >= train_config.batch_size * train_config.gradient_accumulation_steps:
+                
+                # Quickly verify a gradient iteration and checkpoints saving
+                if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 1:
+                    print('validate loss and save checkpoints...', it_cur_iter_index, train_config.n_iters_for_estimate_loss)
+                    it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
+                    is_minimal_loss = False
+                    if it_cur_estimate_loss < it_min_estimate_loss:
+                        it_min_estimate_loss = it_cur_estimate_loss
+                        is_minimal_loss = True
+
+                    it_info = {
+                        'it_cur_estimate_loss': it_cur_estimate_loss.tolist(),
+                        'it_min_estimate_loss': it_min_estimate_loss.tolist(),
+                        'it_cur_micro_step_index': it_cur_micro_step_index,
+                        'it_cur_iter_index': it_cur_iter_index,
+                        'it_cur_sample_offset': it_cur_sample_offset,
+                        'it_micro_step_index_cur_epoch': it_micro_step_index_cur_epoch,
+                        'it_micro_step_num_per_epoch': it_micro_step_num_per_epoch,
+                        'it_index_of_epoch': it_index_of_epoch,
+                        'it_date': f"{datetime.datetime.utcnow().isoformat()}",
+                        'it_tokens_consumed': it_tokens_consumed,
+                        'is_resume_training': is_resume_training,
+                    }    
+                    save_checkpoints(it_info,
+                                     checkpoints_path,
+                                     model,
+                                     train_config,
+                                     is_minimal_loss,
+                                     optimizer)
+                
+                                
                 # determine and set the learning rate for this iteration
                 lr = get_lr(it_cur_iter_index,
                             train_config.warmup_iters,
@@ -342,7 +372,6 @@ def train_loop(model_,
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = lr
                             
-                need_estimate_loss = False
 
                 # loop for gradient_accumulation_steps
                 for _ in range(train_config.gradient_accumulation_steps):
@@ -393,38 +422,7 @@ def train_loop(model_,
 
                 # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
                 
-                # use it_cur_iter_index to flag need_estimate_loss
-                if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 0:
-                    need_estimate_loss = True
                 
-                if need_estimate_loss:
-                    print(it_cur_iter_index, train_config.n_iters_for_estimate_loss)
-                    need_estimate_loss = False
-                    it_cur_estimate_loss = validate_loss(jsonl_f, model, validation_data, device)
-                    is_minimal_loss = False
-                    if it_cur_estimate_loss < it_min_estimate_loss:
-                        it_min_estimate_loss = it_cur_estimate_loss
-                        is_minimal_loss = True
-
-                    it_info = {
-                        'it_cur_estimate_loss': it_cur_estimate_loss.tolist(),
-                        'it_min_estimate_loss': it_min_estimate_loss.tolist(),
-                        'it_cur_micro_step_index': it_cur_micro_step_index,
-                        'it_cur_iter_index': it_cur_iter_index,
-                        'it_cur_sample_offset': it_cur_sample_offset,
-                        'it_micro_step_index_cur_epoch': it_micro_step_index_cur_epoch,
-                        'it_micro_step_num_per_epoch': it_micro_step_num_per_epoch,
-                        'it_index_of_epoch': it_index_of_epoch,
-                        'it_date': f"{datetime.datetime.utcnow().isoformat()}",
-                        'it_tokens_consumed': it_tokens_consumed,
-                        'is_resume_training': is_resume_training,
-                    }    
-                    save_checkpoints(it_info,
-                                     checkpoints_path,
-                                     model,
-                                     train_config,
-                                     is_minimal_loss,
-                                     optimizer)
                 # ?
                 # https://discuss.pytorch.org/t/about-torch-cuda-empty-cache/34232/19
                 # gc.collect()
