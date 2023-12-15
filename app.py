@@ -20,8 +20,7 @@ def translate(model_path, inputs):
     print(ids)  
     inputs = torch.tensor([ids]).to(torch.device('cpu'))
     outputs = model.generate(inputs, max_length=1024)
-    text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
+    text = tokenizer.ids2text(outputs.tolist()[0])
     return text
 
 demo = gr.Interface(
