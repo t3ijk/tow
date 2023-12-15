@@ -12,41 +12,41 @@ LOOP_ALL_COUNT = 0
 LOOP_CUR_COUNT = 0
 LOOP_TOKEN_COUNT = 0
 
-def tk_loop(tokenizer, texts, pad_id=0, is_test=False):
-    global LOOP_ALL_COUNT
-    global LOOP_CUR_COUNT
-    global LOOP_TOKEN_COUNT
-    texts_tkd = []
-    len_max = 0
+# def tk_loop(tokenizer, texts, pad_id=0, is_test=False):
+#     global LOOP_ALL_COUNT
+#     global LOOP_CUR_COUNT
+#     global LOOP_TOKEN_COUNT
+#     texts_tkd = []
+#     len_max = 0
 
-    if is_test:
-        len_max = 1024 # for test oom
+#     if is_test:
+#         len_max = 1024 # for test oom
 
-    for text in texts:
-        LOOP_CUR_COUNT += 1
-        if LOOP_CUR_COUNT % 1000 == 0:
-            progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
-            print(f'{progress:.6f}', end='\r', flush=True)
-        ids = tokenizer(text, max_length=1024)
-        texts_tkd.append(ids)
-        cur_len = len(ids)
-        LOOP_TOKEN_COUNT += cur_len
-        if cur_len > len_max:
-            len_max = cur_len
+#     for text in texts:
+#         LOOP_CUR_COUNT += 1
+#         if LOOP_CUR_COUNT % 1000 == 0:
+#             progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
+#             print(f'{progress:.6f}', end='\r', flush=True)
+#         ids = tokenizer(text, max_length=1024)
+#         texts_tkd.append(ids)
+#         cur_len = len(ids)
+#         LOOP_TOKEN_COUNT += cur_len
+#         if cur_len > len_max:
+#             len_max = cur_len
 
-    texts_tkd_padded = []
-    for ids in texts_tkd:
-        LOOP_CUR_COUNT += 1
-        progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
-        print(f'{progress:.6f}', end='\r', flush=True)
-        len_ids = len(ids)
-        len_pad = len_max - len_ids
-        if len_pad > 0:
-            ids = ids + [pad_id for x in range(len_pad)]
-        texts_tkd_padded.append(ids)
+#     texts_tkd_padded = []
+#     for ids in texts_tkd:
+#         LOOP_CUR_COUNT += 1
+#         progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
+#         print(f'{progress:.6f}', end='\r', flush=True)
+#         len_ids = len(ids)
+#         len_pad = len_max - len_ids
+#         if len_pad > 0:
+#             ids = ids + [pad_id for x in range(len_pad)]
+#         texts_tkd_padded.append(ids)
     
-    print('\nmax ids len: ', len_max)    
-    return texts_tkd_padded   
+#     print('\nmax ids len: ', len_max)    
+#     return texts_tkd_padded   
 
 def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1):
     if ddp_rank != 0 and ddp_rank != -1:
@@ -75,25 +75,41 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
 
     print(f'len all_texts: {len(all_texts):,}')
     print(f'len all_labels: {len(all_labels):,}')
+    if len(all_texts) != len(all_labels):
+        raise Exception('?')
 
     isExist = os.path.exists(preprocessed_data_path)
+    max_ids_len = 1024
     if not isExist:
         print('tokenizing...', preprocessed_data_path)
-        all_texts_ids = tk_loop(tokenizer, all_texts, pad_id=0, is_test=is_test)
-        all_labels_ids = tk_loop(tokenizer, all_labels, pad_id=-100, is_test=is_test)
+        # all_texts_ids = tk_loop(tokenizer, all_texts, pad_id=0, is_test=is_test)
+        # all_labels_ids = tk_loop(tokenizer, all_labels, pad_id=-100, is_test=is_test)
         fd = os.open(preprocessed_data_path, os.O_RDWR | os.O_CREAT)
         line_index = 0
         pos_offset = 0
         jsonl_positions_for_seek = []
-        n = len(all_texts_ids)
+        n = len(all_texts)
         for index in range(n):
-            line_index += 1
+            text = all_texts[index]
+            label = all_labels[index]
             if line_index % 1000 == 0:
-                print(f'{line_index}/{n}', end="\r")
-            jsonl_positions_for_seek.append(pos_offset)
-            line = json.dumps({'input': all_texts_ids[index], 'label': all_labels_ids[index]}) + '\n'
-            # print('len: ', len(line), len(bytes(line, 'utf-8')))
+                progress = line_index / n
+                print(f'{progress:.3f}', end="\r")
 
+            ids_1 = tokenizer(text, max_length=1024)
+            len_pad = max_ids_len - len(ids_1)
+            if len_pad > 0:
+                ids_1 = ids_1 + [0 for x in range(len_pad)]
+
+            ids_2 = tokenizer(text, max_length=1024)
+            len_pad = max_ids_len - len(ids_2)
+            if len_pad > 0:
+                ids_2 = ids_2 + [-100 for x in range(len_pad)]    
+
+            line_index += 1
+            jsonl_positions_for_seek.append(pos_offset)
+            line = json.dumps({'input': ids_1, 'label': ids_2}) + '\n'
+            # print('len: ', len(line), len(bytes(line, 'utf-8')))
             linesep_offset = 1 if os.linesep == '\r\n' else 0
             pos_offset += len(line) + linesep_offset
             os.write(fd, bytes(line, 'utf-8'))
