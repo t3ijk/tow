@@ -63,7 +63,6 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data_files, ddp_
         data = [*data, *data_df.values.tolist()]
         print(path, data_df["src"].value_counts()) 
   
-    random.Random(0).shuffle(data)
     print(f'len data: {len(data):,}')
 
     if is_test:
@@ -81,6 +80,9 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data_files, ddp_
         all_labels.append(f"{text1}")
         all_texts.append(f"{to}2{src}:{text1}")
         all_labels.append(f"{text0}")
+
+    random.Random(0).shuffle(all_texts)
+    random.Random(0).shuffle(all_labels)
 
     global LOOP_ALL_COUNT
     global LOOP_CUR_COUNT
