@@ -90,7 +90,7 @@ def test_train():
     model = get_model()
     train_check(model, checkpoints_path, config)
     env_info = get_env()
-    preprocessed_data_path = f"./preprocessed_data_tow_byt5.jsonl"
+    preprocessed_data_path = f"./preprocessed_data_tow_byt5_v5.jsonl"
     jsonl = get_data(preprocessed_data_path)
     n_val = 30
 
