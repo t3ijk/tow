@@ -15,6 +15,7 @@ from src.preprocess_data import preprocess_data
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 from math import floor
+import datetime
 
 print(sys.argv)
 path = sys.argv[1]
@@ -98,7 +99,7 @@ def get_env():
         )
     if get_ddp_rank() != -1:
         env_info['is_ddp'] = True
-        init_process_group(backend='nccl')
+        init_process_group(backend='nccl', timeout=datetime.timedelta(seconds=86400))
         env_info['ddp_rank'] = int(os.environ['RANK'])
         env_info['ddp_local_rank'] = int(os.environ['LOCAL_RANK'])
         env_info['ddp_world_size'] = int(os.environ['WORLD_SIZE'])
