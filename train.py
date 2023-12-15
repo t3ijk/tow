@@ -128,7 +128,7 @@ def test_train():
                 validation_data=jsonl_val, # validation data
                 checkpoints_path=checkpoints_path,
                 n_epoch_=1,
-                batch_size_=1,
+                batch_size_=2,
                 resume_path=None,
                 device=env_info['device'],
                 n_iters_for_estimate_loss_=2 if is_test else 1000,
