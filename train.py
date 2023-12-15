@@ -60,6 +60,8 @@ def get_data(preprocessed_data_path):
         {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja'},
         {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh'},
         {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh'},
+        {'path': './data/WikiMatrix.es-zh.tsv', 'src': 'es', 'to': 'zh'},
+        {'path': './data/WikiMatrix.es-ja.tsv', 'src': 'es', 'to': 'ja'},
         ]
     data = []
     for file in files:
