@@ -101,7 +101,7 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
             if len_pad > 0:
                 ids_1 = ids_1 + [0 for x in range(len_pad)]
 
-            ids_2 = tokenizer(text, max_length=1024)
+            ids_2 = tokenizer(label, max_length=1024)
             len_pad = max_ids_len - len(ids_2)
             if len_pad > 0:
                 ids_2 = ids_2 + [-100 for x in range(len_pad)]    
@@ -133,6 +133,8 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
                 jsonl_positions_for_seek.append(pos_offset)
                 linesep_offset = 1 if os.linesep == '\r\n' else 0
                 pos_offset += len(line) + linesep_offset
+                if line_index % 1000 == 0 and ddp_rank == 0:
+                    print(f'{line_index}', end="\r")
                 line_index += 1
             else:
                 print('\nlast line?', line)    
