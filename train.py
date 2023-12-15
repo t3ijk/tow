@@ -50,17 +50,16 @@ def get_model():
     return model
 
 def get_data(preprocessed_data_path):
-    ddp_rank = get_ddp_rank()
-    tsv1 = './data/wikititles-v3.zh-en.tsv'
-    tsv2 = './data/news-commentary-v14.en-zh.cleaned.tsv'
-    tsv3 = './data/TED2020.en_zh.tsv'
+
     files = [ 
         # file, from, to
-        {'path': tsv1, 'src': 'zh', 'to': 'en'},
-        {'path': tsv2, 'src': 'en', 'to': 'zh'},
-        {'path': tsv3, 'src': 'en', 'to': 'zh'},
+        {'path': './data/WikiMatrix.en-es.tsv', 'src': 'en', 'to': 'es'},
+        {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja'},
+        {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh'},
+        {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh'},
         ]
-    
+
+    ddp_rank = get_ddp_rank()
     jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data_files=files,ddp_rank=ddp_rank)
     return jsonl_positions_for_seek
 
