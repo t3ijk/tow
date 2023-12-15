@@ -24,8 +24,9 @@ def tk_loop(tokenizer, texts, pad_id=0, is_test=False):
 
     for text in texts:
         LOOP_CUR_COUNT += 1
-        progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
-        print(f'{progress:.6f}', end='\r', flush=True)
+        if LOOP_CUR_COUNT % 1000 == 0:
+            progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
+            print(f'{progress:.6f}', end='\r', flush=True)
         ids = tokenizer(text, max_length=1024)
         texts_tkd.append(ids)
         cur_len = len(ids)
@@ -87,7 +88,8 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
         n = len(all_texts_ids)
         for index in range(n):
             line_index += 1
-            print(f'{line_index}/{n}', end="\r")
+            if line_index % 1000 == 0:
+                print(f'{line_index}/{n}', end="\r")
             jsonl_positions_for_seek.append(pos_offset)
             line = json.dumps({'input': all_texts_ids[index], 'label': all_labels_ids[index]}) + '\n'
             # print('len: ', len(line), len(bytes(line, 'utf-8')))
