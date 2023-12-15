@@ -71,13 +71,13 @@ def get_data(preprocessed_data_path):
         data_df['to'] = to
         data = [*data, *data_df.values.tolist()]
         print(path, data_df["src"].value_counts()) 
-  
+
+    random.Random(0).shuffle(data)    
     print(f'len data: {len(data):,}')
 
     if is_test:
         data = data[0: 200]
 
-    random.Random(0).shuffle(data)    
     ddp_rank = get_ddp_rank()
     jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data, ddp_rank=ddp_rank)
     return jsonl_positions_for_seek
