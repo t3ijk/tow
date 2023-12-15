@@ -47,26 +47,9 @@ def tk_loop(tokenizer, texts, pad_id=0, is_test=False):
     print('\nmax ids len: ', len_max)    
     return texts_tkd_padded   
 
-def preprocess_data(tokenizer, preprocessed_data_path, is_test, data_files, ddp_rank=-1):
+def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1):
     if ddp_rank != 0 and ddp_rank != -1:
         dist.barrier()
-
-    data = []
-    for file in data_files:
-        path = file['path']
-        src = file['src']
-        to = file['to']
-
-        data_df = pd.read_csv(path, sep='\t',  on_bad_lines='skip', nrows=1000000)
-        data_df['src'] = src
-        data_df['to'] = to
-        data = [*data, *data_df.values.tolist()]
-        print(path, data_df["src"].value_counts()) 
-  
-    print(f'len data: {len(data):,}')
-
-    if is_test:
-        data = data[0: 200]
 
     all_texts = []
     all_labels = []

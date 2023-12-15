@@ -61,9 +61,24 @@ def get_data(preprocessed_data_path):
         {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh'},
         {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh'},
         ]
+    data = []
+    for file in files:
+        path = file['path']
+        src = file['src']
+        to = file['to']
+        data_df = pd.read_csv(path, sep='\t',  on_bad_lines='skip', nrows=1000000).iloc[:, 1:3]
+        data_df['src'] = src
+        data_df['to'] = to
+        data = [*data, *data_df.values.tolist()]
+        print(path, data_df["src"].value_counts()) 
+  
+    print(f'len data: {len(data):,}')
+
+    if is_test:
+        data = data[0: 200]
 
     ddp_rank = get_ddp_rank()
-    jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data_files=files,ddp_rank=ddp_rank)
+    jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data, ddp_rank=ddp_rank)
     return jsonl_positions_for_seek
 
 def get_env():
