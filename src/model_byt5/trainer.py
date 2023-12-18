@@ -384,6 +384,7 @@ def train_loop(model_,
                             
 
                 # loop for gradient_accumulation_steps
+                loss_accumulation = 0
                 for micro_step_ in range(train_config.gradient_accumulation_steps):
 
                     if is_ddp:
@@ -423,9 +424,10 @@ def train_loop(model_,
                                      it_cur_estimate_loss,
                                      env_info)
                     
-                    if is_master_process:
-                        print(log)
                     loss = loss / train_config.gradient_accumulation_steps
+                    loss_accumulation += loss
+                    if is_master_process and micro_step_ == train_config.gradient_accumulation_steps - 1:
+                        print(log)
                     loss.backward()
                     # update steps counter
                     it_cur_sample_offset += train_config.batch_size
