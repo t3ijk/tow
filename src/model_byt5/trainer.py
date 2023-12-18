@@ -283,6 +283,7 @@ def train_loop(model_,
     
     else:
         print('is_resume_training', is_resume_training)
+        train_config = Train_config()
         if n_iters_for_estimate_loss_ is not None:
             train_config.n_iters_for_estimate_loss = n_iters_for_estimate_loss_
         if gradient_accumulation_steps_ is not None:
@@ -290,7 +291,6 @@ def train_loop(model_,
         if warmup_iters_ is not None:
             train_config.warmup_iters = warmup_iters_ 
         model = model_
-        train_config = Train_config()
         train_config.n_sample = len(training_data)
         train_config.batch_size = batch_size_
         train_config.n_epoch = n_epoch_
