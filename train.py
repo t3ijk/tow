@@ -57,19 +57,24 @@ def get_data(preprocessed_data_path):
 
     files = [ 
         # file, from, to
-        {'path': './data/WikiMatrix.en-es.tsv', 'src': 'en', 'to': 'es'},
-        {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja'},
-        {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh'},
-        {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh'},
-        {'path': './data/WikiMatrix.es-zh.tsv', 'src': 'es', 'to': 'zh'},
-        {'path': './data/WikiMatrix.es-ja.tsv', 'src': 'es', 'to': 'ja'},
+        {'path': './data/WikiMatrix.en-es.tsv', 'src': 'en', 'to': 'es', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
+        {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
+        {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 250000},
+        {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
+        {'path': './data/WikiMatrix.es-zh.tsv', 'src': 'es', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
+        {'path': './data/WikiMatrix.es-ja.tsv', 'src': 'es', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
+        {'path': './data/news-commentary-v14.en-zh.cleaned.tsv', 'src': 'en', 'to': 'zh', 'c_b': 0, 'c_e': 2, 'nrows': 250000},
         ]
     data = []
     for file in files:
         path = file['path']
         src = file['src']
         to = file['to']
-        data_df = pd.read_csv(path, sep='\t',  on_bad_lines='skip', nrows=1000000).iloc[:, 1:3]
+        c_b = file['c_b']
+        c_e = file['c_e']
+        to = file['to']
+        nrows = file['nrows']
+        data_df = pd.read_csv(path, sep='\t',  on_bad_lines='skip', nrows=nrows).iloc[:, c_b:c_e]
         data_df['src'] = src
         data_df['to'] = to
         data = [*data, *data_df.values.tolist()]
