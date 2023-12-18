@@ -283,19 +283,19 @@ def train_loop(model_,
     
     else:
         print('is_resume_training', is_resume_training)
+        if n_iters_for_estimate_loss_ is not None:
+            train_config.n_iters_for_estimate_loss = n_iters_for_estimate_loss_
+        if gradient_accumulation_steps_ is not None:
+            train_config.gradient_accumulation_steps = gradient_accumulation_steps_
+        if warmup_iters_ is not None:
+            train_config.warmup_iters = warmup_iters_ 
         model = model_
         train_config = Train_config()
         train_config.n_sample = len(training_data)
         train_config.batch_size = batch_size_
         train_config.n_epoch = n_epoch_
         train_config.max_iters = math.floor((train_config.n_sample / batch_size_ /  train_config.gradient_accumulation_steps) * n_epoch_)
-        train_config.lr_decay_iters = train_config.max_iters
-        if n_iters_for_estimate_loss_ is not None:
-            train_config.n_iters_for_estimate_loss = n_iters_for_estimate_loss_
-        if gradient_accumulation_steps_ is not None:
-            train_config.gradient_accumulation_steps = gradient_accumulation_steps_
-        if warmup_iters_ is not None:
-            train_config.warmup_iters = warmup_iters_    
+        train_config.lr_decay_iters = train_config.max_iters   
 
         train_check(model, checkpoints_path, train_config)
         optimizer = configure_optimizers(model,
