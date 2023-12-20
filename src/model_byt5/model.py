@@ -276,33 +276,68 @@ class PositionalEncoding(nn.Module):
             CUR_MODEL.byt5config.relative_attention_num_buckets, CUR_MODEL.byt5config.num_heads
         )
 
+    def alibi(self, query_length, key_length, device=None):
+
+        # https://github.com/ofirpress/attention_with_linear_biases
+        def get_slopes(n):
+            def get_slopes_power_of_2(n):
+                start = (2**(-2**-(math.log2(n)-3)))
+                ratio = start
+                return [start*ratio**i for i in range(n)]
+
+            if math.log2(n).is_integer():
+                return get_slopes_power_of_2(n)                   #In the paper, we only train models that have 2^a heads for some a. This function has
+            else:                                                 #some good properties that only occur when the input is a power of 2. To maintain that even
+                closest_power_of_2 = 2**math.floor(math.log2(n))  #when the number of heads is not a power of 2, we use this workaround. 
+                return get_slopes_power_of_2(closest_power_of_2) + get_slopes(2*closest_power_of_2)[0::2][:n-closest_power_of_2]
+            
+        context_position = torch.arange(query_length, dtype=torch.long, device=device)[:, None]
+        memory_position = torch.arange(key_length, dtype=torch.long, device=device)[None, :]
+        relative_position = (context_position - memory_position)
+        relative_position = -1 * torch.abs(relative_position)
+        left_right = (context_position - memory_position)
+        left_right = torch.where(left_right > 0, 0.5, 2)
+        relative_position = relative_position * left_right
+
+        slopes = get_slopes(CUR_MODEL.byt5config.num_heads)
+        slopes = torch.tensor(slopes, device=device).reshape([1, CUR_MODEL.byt5config.num_heads, 1, 1])
+        headers_alibi_position = slopes * relative_position
+        return headers_alibi_position
+    
+    ## forward alibi
     def forward(self, query_length, key_length, device=None, bidirectional=True):
         if device is None:
             device = self.relative_attention_bias.weight.device
-        context_position = torch.arange(query_length, dtype=torch.long, device=device)[
-            :, None
-        ]
-        memory_position = torch.arange(key_length, dtype=torch.long, device=device)[
-            None, :
-        ]
-        relative_position = (
-            memory_position - context_position
-        )  # shape (query_length, key_length)
-        relative_position_bucket = _relative_position_bucket(
-            relative_position,  # shape (query_length, key_length)
-            bidirectional=bidirectional,
-            num_buckets=CUR_MODEL.byt5config.relative_attention_num_buckets,
-            max_distance=CUR_MODEL.byt5config.relative_attention_max_distance,
-        )
+        return  self.alibi(query_length, key_length, device)  
 
-        values = self.relative_attention_bias(
-            relative_position_bucket
-        )  # shape (query_length, key_length, num_heads)
+    ## forward t5 bias
+    # def forward(self, query_length, key_length, device=None, bidirectional=True):
+    #     if device is None:
+    #         device = self.relative_attention_bias.weight.device
+    #     context_position = torch.arange(query_length, dtype=torch.long, device=device)[
+    #         :, None
+    #     ]
+    #     memory_position = torch.arange(key_length, dtype=torch.long, device=device)[
+    #         None, :
+    #     ]
+    #     relative_position = (
+    #         memory_position - context_position
+    #     )  # shape (query_length, key_length)
+    #     relative_position_bucket = _relative_position_bucket(
+    #         relative_position,  # shape (query_length, key_length)
+    #         bidirectional=bidirectional,
+    #         num_buckets=CUR_MODEL.byt5config.relative_attention_num_buckets,
+    #         max_distance=CUR_MODEL.byt5config.relative_attention_max_distance,
+    #     )
 
-        values = values.permute([2, 0, 1]).unsqueeze(
-            0
-        )  # shape (1, num_heads, query_length, key_length)
-        return values
+    #     values = self.relative_attention_bias(
+    #         relative_position_bucket
+    #     )  # shape (query_length, key_length, num_heads)
+
+    #     values = values.permute([2, 0, 1]).unsqueeze(
+    #         0
+    #     )  # shape (1, num_heads, query_length, key_length)
+    #     return values
 
 class Transformer_byt5(nn.Module):
     def __init__(self, config={}):
