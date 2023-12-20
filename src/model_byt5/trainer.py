@@ -167,7 +167,9 @@ def log_format(train_config,
 
     loss = "{:.4}".format(loss)
     v_loss = "{:.4}".format(it_cur_estimate_loss)
-
+    if it_cur_estimate_loss < 0 :
+        v_loss = None
+    
     info = {
         'ws': env_info['ddp_world_size'],
         'ep': f'{it_index_of_epoch}/{train_config.n_epoch}',
