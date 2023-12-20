@@ -80,6 +80,7 @@ def get_data(preprocessed_data_path):
         data = [*data, *data_df.values.tolist()]
         print(path, data_df["src"].value_counts()) 
 
+    # todo: data -> data enhance -> shuffle -> preprocess_data_no_shuffle
     random.Random(0).shuffle(data)    
     print(f'len data: {len(data):,}')
 
