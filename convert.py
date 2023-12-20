@@ -21,7 +21,8 @@ def hf_model_weight_name_mapping(key):
             if weight_name == 'o':
                 return f"encoder.{block_id}.multi_head_attention.linear.weight"
             if weight_name == 'relative_attention_bias':
-                return f"encoder.{block_id}.multi_head_attention.input_positional_encoding.relative_attention_bias.weight"
+                return None
+                # return f"encoder.{block_id}.multi_head_attention.input_positional_encoding.relative_attention_bias.weight"
         
         if compo_name == 'layer_norm':
             return f"encoder.{block_id}.normal{int(layer_id)+1}.weight"
@@ -54,7 +55,8 @@ def hf_model_weight_name_mapping(key):
             if weight_name == 'o':
                 return f"decoder.{block_id}.masked_multi_head_attention.linear.weight"
             if weight_name == 'relative_attention_bias':
-                return f"decoder.{block_id}.masked_multi_head_attention.input_positional_encoding.relative_attention_bias.weight"
+                return None
+                # return f"decoder.{block_id}.masked_multi_head_attention.input_positional_encoding.relative_attention_bias.weight"
 
         if compo_name == 'EncDecAttention':
             if weight_name == 'q':
@@ -66,7 +68,8 @@ def hf_model_weight_name_mapping(key):
             if weight_name == 'o':
                 return f"decoder.{block_id}.multi_head_attention.linear.weight"
             if weight_name == 'relative_attention_bias':
-                return f"decoder.{block_id}.multi_head_attention.input_positional_encoding.relative_attention_bias.weight"        
+                return None
+                # return f"decoder.{block_id}.multi_head_attention.input_positional_encoding.relative_attention_bias.weight"        
         
         if compo_name == 'layer_norm':
             return f"decoder.{block_id}.normal{int(layer_id)+1}.weight"

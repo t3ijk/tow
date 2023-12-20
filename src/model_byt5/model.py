@@ -272,9 +272,9 @@ class DecoderLayer(nn.Module):
 class PositionalEncoding(nn.Module):
     def __init__(self):
         super().__init__()
-        self.relative_attention_bias = nn.Embedding(
-            CUR_MODEL.byt5config.relative_attention_num_buckets, CUR_MODEL.byt5config.num_heads
-        )
+        # self.relative_attention_bias = nn.Embedding(
+        #     CUR_MODEL.byt5config.relative_attention_num_buckets, CUR_MODEL.byt5config.num_heads
+        # )
 
     def alibi(self, query_length, key_length, device=None):
 
@@ -306,9 +306,9 @@ class PositionalEncoding(nn.Module):
     
     ## forward alibi
     def forward(self, query_length, key_length, device=None, bidirectional=True):
-        if device is None:
-            device = self.relative_attention_bias.weight.device
-        return  self.alibi(query_length, key_length, device)  
+        # if device is None:
+        #     device = self.relative_attention_bias.weight.device
+        return  self.alibi(query_length, key_length, device=next(CUR_MODEL.parameters()).device)  
 
     ## forward t5 bias
     # def forward(self, query_length, key_length, device=None, bidirectional=True):
