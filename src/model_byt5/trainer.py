@@ -146,7 +146,7 @@ def save_checkpoints(it_info,
 
 def validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
              it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
-             it_tokens_consumed, is_resume_training, checkpoints_path, optimizer):
+             it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss):
     
     print('validate loss and save checkpoints...', it_cur_iter_index, train_config.n_iters_for_estimate_loss)
     it_cur_estimate_loss = validate_loss(jsonl_f, raw_model, validation_data, device)
@@ -380,7 +380,7 @@ def train_loop(model_,
                 if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 1 and is_master_process:
                     validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
                             it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
-                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer)
+                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss)
                                 
                 # determine and set the learning rate for this iteration
                 lr = get_lr(it_cur_iter_index,
@@ -454,7 +454,7 @@ def train_loop(model_,
                 if is_last_iter:
                     validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
                             it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
-                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer)
+                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss)
 
                 # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
 
