@@ -75,8 +75,8 @@
             return new_ts
         }
 
-        const objKeys = ['ls', 'vls', 'pro', 'lr', 'tks', 'h']
-        const objKeysScale = ['ls', 'ls', 'pro', 'lr', 'tks', 'h']
+        const objKeys = ['ls', 'vls', 'iter', 'pro', 'lr', 'tks', 'h']
+        const objKeysScale = ['ls', 'ls', 'iter', 'pro', 'lr', 'tks', 'h']
 
         function prepData(packedArray) {
             let maxLen = Math.max(...packedArray.map(it => it.length))
@@ -88,6 +88,13 @@
                 })
             })
 
+            function safeValue(v) {
+                if (typeof v == typeof "str" && v.includes('/')) {
+                    return Number(v.split('/')[0])
+                }
+                return v
+            }
+
             for (var step = 0; step < maxLen; step++) {
                 data[0][step] = step
                 packedArray.forEach((lines, lines_i) => {
@@ -96,7 +103,7 @@
                         let l_obj = {}
                         if (step < lines.length) {
                             l_obj = JSON.parse(lines[step])
-                            data[lines_i * nKey + 1 + key_i][step] = l_obj[key]
+                            data[lines_i * nKey + 1 + key_i][step] = safeValue(l_obj[key])
                         } else {
                             data[lines_i * nKey + 1 + key_i][step] = null
                         }
@@ -139,6 +146,12 @@
                 {
                     scale: "ls",
                     values: (self, ticks) => ticks.map(rawValue => rawValue.toFixed(1)),
+                },
+                {
+                    scale: "iter",
+                    values: (self, ticks) => ticks.map(rawValue => rawValue + ""),
+                    side: 1,
+                    grid: { show: false },
                 },
                 {
                     scale: "pro",
