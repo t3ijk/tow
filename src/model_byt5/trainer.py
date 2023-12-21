@@ -445,12 +445,6 @@ def train_loop(model_,
                 # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
 
         print('Epoch is completed')        
-        save_checkpoints(it_info,
-                        checkpoints_path,
-                        raw_model,
-                        train_config,
-                        is_minimal_loss,
-                        optimizer)
               
     print('all_tokens_consumed: ', it_tokens_consumed)
     print('Training is completed')                    
