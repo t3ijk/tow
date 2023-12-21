@@ -443,7 +443,8 @@ def train_loop(model_,
                 it_cur_iter_index += 1
 
                 # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
-                
+
+        print('Epoch is completed')        
         save_checkpoints(it_info,
                         checkpoints_path,
                         raw_model,
