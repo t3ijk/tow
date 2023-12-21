@@ -165,8 +165,8 @@ def log_format(train_config,
     lr_2 = "{:.5e}".format(lr)
     h = "{:.2f}".format(delta_t * remain_steps / 3600)
 
-    loss = "{:.4}".format(loss)
-    v_loss = "{:.4}".format(it_cur_estimate_loss)
+    loss = "{:.4f}".format(loss)
+    v_loss = "{:.4f}".format(it_cur_estimate_loss)
     if it_cur_estimate_loss < 0 :
         v_loss = None
     
