@@ -75,27 +75,34 @@
             return new_ts
         }
 
+        const objKeys = ['ls', 'vls', 'pro', 'lr', 'tks', 'h']
+        const objKeysScale = ['ls', 'ls', 'pro', 'lr', 'tks', 'h']
+
         function prepData(packedArray) {
             let maxLen = Math.max(...packedArray.map(it => it.length))
             let data = [[]];
 
             packedArray.forEach(lines => {
-                data.push([])
+                objKeys.forEach(_ => {
+                    data.push([])
+                })
             })
 
-            for (var index = 0; index < maxLen; index++) {
-                data[0][index] = index
-                packedArray.forEach((lines, i) => {
-                    let l_obj = {}
-                    if (index < lines.length) {
-                        l_obj = JSON.parse(lines[index])
-                        data[i + 1][index] = l_obj['ls']
-                    } else {
-                        data[i + 1][index] = null
-                    }
+            for (var step = 0; step < maxLen; step++) {
+                data[0][step] = step
+                packedArray.forEach((lines, lines_i) => {
+                    const nKey = objKeys.length
+                    objKeys.forEach((key, key_i) => {
+                        let l_obj = {}
+                        if (step < lines.length) {
+                            l_obj = JSON.parse(lines[step])
+                            data[lines_i * nKey + 1 + key_i][step] = l_obj[key]
+                        } else {
+                            data[lines_i * nKey + 1 + key_i][step] = null
+                        }
+                    })
                 })
             }
-
             console.log(data)
             return data;
         }
@@ -103,28 +110,61 @@
         function makeChart(data) {
             console.time("chart");
 
-            const colors = ['#ff000088', '#00ff0088', '#0000ff88', '#ffff0088', '#00ffff88', '#00000088']
+            const colors = ['#ff000088', '#0000ff88', '#00ff0088', '#ffff0088', '#00ffff88', '#00000088']
 
             series = data.map((it, index) => {
-
                 if (index == 0) {
                     return {}
                 }
+
+                const realIndex = index - 1
+                const key_i = realIndex % objKeys.length
+                const lines_i = Math.floor(realIndex / objKeys.length)
+                console.log(lines_i, key_i)
+
                 return {
-                    label: "Loss",
-                    scale: "loss",
+                    show: key_i == 0,
+                    label: `log${lines_i + 1}.${objKeys[key_i]}`,
+                    scale: objKeysScale[key_i],
                     value: (u, v) => {
                         return v == null ? null : v
                     },
-                    stroke: colors[index-1],
+                    stroke: colors[lines_i],
                     width: 1 / devicePixelRatio,
                 }
             })
 
-            axes = [{}, {
-                scale: "loss",
-                values: (self, ticks) => ticks.map(rawValue => rawValue.toFixed(1)),
-            }]
+            axes = [
+                {},
+                {
+                    scale: "ls",
+                    values: (self, ticks) => ticks.map(rawValue => rawValue.toFixed(1)),
+                },
+                {
+                    scale: "pro",
+                    values: (self, ticks) => ticks.map(rawValue => rawValue + ""),
+                    side: 1,
+                    grid: { show: false },
+                },
+                {
+                    scale: "lr",
+                    values: (self, ticks) => ticks.map(rawValue => rawValue.toExponential()),
+                    side: 1,
+                    grid: { show: false },
+                },
+                {
+                    scale: "tks",
+                    values: (self, ticks) => ticks.map(rawValue => rawValue.toExponential()),
+                    side: 1,
+                    grid: { show: false },
+                },
+                {
+                    scale: "h",
+                    values: (self, ticks) => ticks.map(rawValue => rawValue.toFixed(1)),
+                    side: 1,
+                    grid: { show: false },
+                },
+            ]
 
             console.log(series, axes)
 
@@ -184,15 +224,15 @@
 
     </script>
 
-                <!-- const colors = ['#000000', '#00000f', '#0000ff', '#000f00', '#00ff00', '#0f0000', '#ff0000', '#ffff00'] -->
+    <!-- const colors = ['#000000', '#00000f', '#0000ff', '#000f00', '#00ff00', '#0f0000', '#ff0000', '#ffff00'] -->
 
     <p>
         Demo:
         </br>
-        colors: 
+        colors:
         <span style="color:#ff0000"> LOG1 </span>
-        <span style="color:#00ff00"> LOG2 </span>
-        <span style="color:#0000ff"> LOG3 </span>
+        <span style="color:#0000ff"> LOG2 </span>
+        <span style="color:#00ff00"> LOG3 </span>
         <span style="color:#ffff00"> LOG4 </span>
         <span style="color:#00ffff"> LOG5 </span>
         <span style="color:#000000"> LOG6 </span>
