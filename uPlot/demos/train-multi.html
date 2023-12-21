@@ -103,7 +103,7 @@
         function makeChart(data) {
             console.time("chart");
 
-            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#000000']
+            const colors = ['#ff000088', '#00ff0088', '#0000ff88', '#ffff0088', '#00ffff88', '#00000088']
 
             series = data.map((it, index) => {
 
@@ -172,6 +172,7 @@
                 let r = await fetch(logFile)
                 let packed = await r.text()
                 lines = packed.split('\n')
+                lines = lines.filter(line => line.includes('"iter"'))
                 retArray.push(lines)
             }
 
