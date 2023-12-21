@@ -1,0 +1,205 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>μPlot Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="../js/uPlot.min.css">
+    <style>
+        body {
+            margin: 0;
+        }
+
+        .u-legend.u-inline .u-value {
+            width: 150px;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="../js/uPlot.iife.js"></script>
+    <h2 id="wait">Loading lib....</h2>
+
+    <script>
+        function round2(val) {
+            return Math.round(val * 100) / 100;
+        }
+
+        function round3(val) {
+            return Math.round(val * 1000) / 1000;
+        }
+
+
+        function beNumber(n) {
+            if (isNaN(n)) {
+                return null // show nothing
+            } else {
+                return Number(n)
+            }
+        }
+
+        function handleFromToFilter(ts, from, to) {
+            if (ts <= 0) {
+                return true // disposal
+            }
+
+            if (from != null && ts < from) {
+                return true // disposal
+            }
+
+            if (to != null && ts > to) {
+                return true // disposal
+            }
+            return false
+        }
+
+
+        let last_ts = null
+        let cumulated_gap_offset = 0
+        function handleMaxGap(ts, maxGap) {
+            let gap = 0
+            if (last_ts != null) {
+                gap = ts - last_ts
+            }
+            if (gap < 0) {
+                console.log('gap < 0', gap)
+            }
+            if (maxGap != null && gap > maxGap) {
+                cumulated_gap_offset = (gap - maxGap) + cumulated_gap_offset
+            }
+            new_ts = ts - cumulated_gap_offset
+            last_ts = ts
+            return new_ts
+        }
+
+        function prepData(packedArray) {
+            let maxLen = Math.max(...packedArray.map(it => it.length))
+            let data = [[]];
+
+            packedArray.forEach(lines => {
+                data.push([])
+            })
+
+            for (var index = 0; index < maxLen; index++) {
+                data[0][index] = index
+                packedArray.forEach((lines, i) => {
+                    let l_obj = {}
+                    if (index < lines.length) {
+                        l_obj = JSON.parse(lines[index])
+                        data[i + 1][index] = l_obj['ls']
+                    } else {
+                        data[i + 1][index] = null
+                    }
+                })
+            }
+
+            console.log(data)
+            return data;
+        }
+
+        function makeChart(data) {
+            console.time("chart");
+
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#000000']
+
+            series = data.map((it, index) => {
+
+                if (index == 0) {
+                    return {}
+                }
+                return {
+                    label: "Loss",
+                    scale: "loss",
+                    value: (u, v) => {
+                        return v == null ? null : v
+                    },
+                    stroke: colors[index-1],
+                    width: 1 / devicePixelRatio,
+                }
+            })
+
+            axes = [{}, {
+                scale: "loss",
+                values: (self, ticks) => ticks.map(rawValue => rawValue.toFixed(1)),
+            }]
+
+            console.log(series, axes)
+
+            const opts = {
+                title: "Train Loss",
+                width: 1920,
+                height: 600,
+                scales: {
+                    x: { time: false, }
+                },
+                //	ms:     1,
+                //	cursor: {
+                //		x: false,
+                //		y: false,
+                //	},
+                series: series,
+                axes: axes,
+            };
+
+            let params = new URL(document.location).searchParams;
+
+
+            let uplot = new uPlot(opts, data, document.body);
+
+            Promise.resolve().then(() => {
+                wait.textContent = "";
+                console.timeEnd("chart");
+            });
+        }
+
+        let wait = document.getElementById("wait");
+        wait.textContent = "Fetching ....";
+
+        logFile = "./data/train.log"
+        let params = new URL(document.location).searchParams;
+        let logs = params.getAll("log");
+        console.log('logs', logs)
+
+        async function loadFiles() {
+            wait.textContent = "Rendering...";
+
+            let retArray = []
+            for (var i = 0; i < logs.length; i++) {
+                let logFile = logs[i]
+                let r = await fetch(logFile)
+                let packed = await r.text()
+                lines = packed.split('\n')
+                retArray.push(lines)
+            }
+
+            let data = prepData(retArray);
+            setTimeout(() => makeChart(data), 0);
+        }
+        loadFiles()
+
+
+    </script>
+
+                <!-- const colors = ['#000000', '#00000f', '#0000ff', '#000f00', '#00ff00', '#0f0000', '#ff0000', '#ffff00'] -->
+
+    <p>
+        Demo:
+        </br>
+        colors: 
+        <span style="color:#ff0000"> LOG1 </span>
+        <span style="color:#00ff00"> LOG2 </span>
+        <span style="color:#0000ff"> LOG3 </span>
+        <span style="color:#ffff00"> LOG4 </span>
+        <span style="color:#00ffff"> LOG5 </span>
+        <span style="color:#000000"> LOG6 </span>
+        </br>
+        http://127.0.0.1:8080/uPlot/demos/train-multi.html?log=http://127.0.0.1:8080/uPlot/demos/data/train.log&log=http://127.0.0.1:8080/uPlot/demos/data/train2.log
+
+    </p>
+
+</body>
+
+</html>
