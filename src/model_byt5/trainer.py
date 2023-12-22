@@ -93,7 +93,7 @@ def validate_loss(jsonl_f, model, validation_data, device):
         outputs = indices.reshape(indices.shape[0:-1]) # (batch, n, 1) -> (batch, n)
 
         # free generated outputs
-        gen_outputs = model.generate(input_ids, max_length=1024, use_cache=True)
+        gen_outputs = model.generate(input_ids, max_length=512, use_cache=True)
         print(index, '-----------------')
         print([tk.text_clean_special_tokens(tk.ids2text(input_ids.tolist()[0]))])
         print([tk.text_clean_special_tokens(tk.ids2text(label_ids.tolist()[0]))])
