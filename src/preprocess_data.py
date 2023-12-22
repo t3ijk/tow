@@ -12,7 +12,7 @@ LOOP_ALL_COUNT = 0
 LOOP_CUR_COUNT = 0
 LOOP_TOKEN_COUNT = 0
 
-def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1):
+def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1, max_ids_len=1024):
     if ddp_rank != 0 and ddp_rank != -1:
         dist.barrier()
 
@@ -43,7 +43,6 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
         raise Exception('?')
 
     isExist = os.path.exists(preprocessed_data_path)
-    max_ids_len = 1024
     if not isExist:
         print('tokenizing...', preprocessed_data_path)
         # all_texts_ids = tk_loop(tokenizer, all_texts, pad_id=0, is_test=is_test)
@@ -60,12 +59,12 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
                 progress = line_index / n
                 print(f'{progress:.3f}', end="\r")
 
-            ids_1 = tokenizer(text, max_length=1024)
+            ids_1 = tokenizer(text, max_length=max_ids_len)
             len_pad = max_ids_len - len(ids_1)
             if len_pad > 0:
                 ids_1 = ids_1 + [0 for x in range(len_pad)]
 
-            ids_2 = tokenizer(label, max_length=1024)
+            ids_2 = tokenizer(label, max_length=max_ids_len)
             len_pad = max_ids_len - len(ids_2)
             if len_pad > 0:
                 ids_2 = ids_2 + [-100 for x in range(len_pad)]    
