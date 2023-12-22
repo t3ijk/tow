@@ -6,8 +6,8 @@ The cities of Oxnard and Port Hueneme — both in Ventura County, west of Los An
 The brunt of the storm damage appeared to be in the beachside city of Port Hueneme, according to the Ventura County Star, part of the USA TODAY Network. Roughly 60 homes in a senior community there were evacuated overnight.
 
 
-m:  一个缓慢移动的太平洋风暴导致周四在加利福尼亚南部海岸的城镇和海滩城镇撤离,因为街道被淹没在洪水下。
-m:  一个缓慢移动的太平洋风暴 在星期四导致 加利福尼亚南部海岸的 城市和海滩城镇 被淹没在洪水下。
+b4:  一个缓慢移动的太平洋风暴导致周四在加利福尼亚南部海岸的城镇和海滩城镇撤离,因为街道被淹没在洪水下。
+b1:  一个缓慢移动的太平洋风暴 在星期四导致 加利福尼亚南部海岸的 城市和海滩城镇 被淹没在洪水下。
 g:  周四，一场缓慢移动的太平洋风暴促使加州南部海岸的城市和海滩小镇进行疏散，街道被洪水淹没。
 ./checkpoints_train/last_loss:  一场慢慢的太平洋风暴促进了星期六和海岸的城市和海岸镇，因为街道被洪水流浅下沉没。
 checkpoints_train_1220: 一个缓慢的太平洋风暴促使城市和沿加利福尼亚南海岸的海滩城市的撤离周日，当街道被洪水浸浪浪渐行时，街道被浸入洪水下。
