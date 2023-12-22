@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>μPlot Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="../js/uPlot.min.css">
+    <style>
+        body {
+            margin: 0;
+        }
+
+        .u-legend.u-inline .u-value {
+            width: 150px;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="../js/uPlot.iife.js"></script>
+    <h2 id="wait">Loading lib....</h2>
+
+    <script>
+        function round2(val) {
+            return Math.round(val * 100) / 100;
+        }
+
+        function round3(val) {
+            return Math.round(val * 1000) / 1000;
+        }
+
+
+        function beNumber(n) {
+            if (isNaN(n)) {
+                return null // show nothing
+            } else {
+                return Number(n)
+            }
+        }
+
+        function handleFromToFilter(ts, from, to) {
+            if (ts <= 0) {
+                return true // disposal
+            }
+
+            if (from != null && ts < from) {
+                return true // disposal
+            }
+
+            if (to != null && ts > to) {
+                return true // disposal
+            }
+            return false
+        }
+
+
+        let last_ts = null
+        let cumulated_gap_offset = 0
+        function handleMaxGap(ts, maxGap) {
+            let gap = 0
+            if (last_ts != null) {
+                gap = ts - last_ts
+            }
+            if (gap < 0) {
+                console.log('gap < 0', gap)
+            }
+            if (maxGap != null && gap > maxGap) {
+                cumulated_gap_offset = (gap - maxGap) + cumulated_gap_offset
+            }
+            new_ts = ts - cumulated_gap_offset
+            last_ts = ts
+            return new_ts
+        }
+
+        const objKeys = ['ls', 'vls', 'iter', 'pro', 'lr', 'tks', 'h']
+        const objKeysScale = ['ls', 'ls', 'iter', 'pro', 'lr', 'tks', 'h']
+
+        function prepData(packedArray) {
+            let maxLen = Math.max(...packedArray.map(it => it.length))
+            let data = [[]];
+
+            packedArray.forEach(lines => {
+                objKeys.forEach(_ => {
+                    data.push([])
+                })
+            })
+
+            function safeValue(v) {
+                if (typeof v == typeof "str" && v.includes('/')) {
+                    return Number(v.split('/')[0])
+                }
+                return v
+            }
+
+            for (var step = 0; step < maxLen; step++) {
+                data[0][step] = step
+                packedArray.forEach((lines, lines_i) => {
+                    const nKey = objKeys.length
+                    objKeys.forEach((key, key_i) => {
+                        let l_obj = {}
+                        if (step < lines.length) {
+                            l_obj = JSON.parse(lines[step])
+                            data[lines_i * nKey + 1 + key_i][step] = safeValue(l_obj[key])
+                        } else {
+                            data[lines_i * nKey + 1 + key_i][step] = null
+                        }
+                    })
+                })
+            }
+            console.log(data)
+            return data;
+        }
+
+        function makeChart(data) {
+            console.time("chart");
+
+            const colors = ['#ff000088', '#0000ff88', '#00ff0088', '#ffff0088', '#00ffff88', '#00000088']
+
+            series = data.map((it, index) => {
+                if (index == 0) {
+                    return {}
+                }
+
+                const realIndex = index - 1
+                const key_i = realIndex % objKeys.length
+                const lines_i = Math.floor(realIndex / objKeys.length)
+                console.log(lines_i, key_i)
+
+                return {
+                    show: key_i == 0,
+                    label: `log${lines_i + 1}.${objKeys[key_i]}`,
+                    // scale: objKeysScale[key_i],
+                    value: (u, v) => {
+                        return v == null ? null : v
+                    },
+                    stroke: colors[lines_i],
+                    width: 1 / devicePixelRatio,
+                }
+            })
+
+            axes = [
+                {},
+            ]
+
+            console.log(series, axes)
+
+            const opts = {
+                title: "Train Loss",
+                width: 1920,
+                height: 600,
+                scales: {
+                    x: { time: false, },
+                    y: { distr: 3, }
+                },
+                //	ms:     1,
+                //	cursor: {
+                //		x: false,
+                //		y: false,
+                //	},
+                series: series,
+                axes: axes,
+            };
+
+            let params = new URL(document.location).searchParams;
+
+
+            let uplot = new uPlot(opts, data, document.body);
+
+            Promise.resolve().then(() => {
+                wait.textContent = "";
+                console.timeEnd("chart");
+            });
+        }
+
+        let wait = document.getElementById("wait");
+        wait.textContent = "Fetching ....";
+
+        logFile = "./data/train.log"
+        let params = new URL(document.location).searchParams;
+        let logs = params.getAll("log");
+        console.log('logs', logs)
+
+        async function loadFiles() {
+            wait.textContent = "Rendering...";
+
+            let retArray = []
+            for (var i = 0; i < logs.length; i++) {
+                let logFile = logs[i]
+                let r = await fetch(logFile)
+                let packed = await r.text()
+                lines = packed.split('\n')
+                lines = lines.filter(line => line.includes('"iter"'))
+                retArray.push(lines)
+            }
+
+            let data = prepData(retArray);
+            setTimeout(() => makeChart(data), 0);
+        }
+        loadFiles()
+
+
+    </script>
+
+    <!-- const colors = ['#000000', '#00000f', '#0000ff', '#000f00', '#00ff00', '#0f0000', '#ff0000', '#ffff00'] -->
+
+    <p>
+        Demo:
+        </br>
+        colors:
+        <span style="color:#ff0000"> LOG1 </span>
+        <span style="color:#0000ff"> LOG2 </span>
+        <span style="color:#00ff00"> LOG3 </span>
+        <span style="color:#ffff00"> LOG4 </span>
+        <span style="color:#00ffff"> LOG5 </span>
+        <span style="color:#000000"> LOG6 </span>
+        </br>
+        http://127.0.0.1:8080/uPlot/demos/train-multi.html?log=http://127.0.0.1:8080/uPlot/demos/data/train.log&log=http://127.0.0.1:8080/uPlot/demos/data/train2.log
+
+    </p>
+
+</body>
+
+</html>
