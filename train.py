@@ -138,7 +138,7 @@ def test_train():
                 resume_path=None,
                 device=env_info['device'],
                 n_iters_for_estimate_loss_=2 if is_test else 1000,
-                gradient_accumulation_steps_=2 if is_test else 15,
+                gradient_accumulation_steps_=2 if is_test else 20,
                 warmup_iters_=3000,
                 env_info=env_info)
     
