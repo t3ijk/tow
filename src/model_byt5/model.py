@@ -294,9 +294,9 @@ class PositionalEncoding(nn.Module):
         context_position = torch.arange(query_length, dtype=torch.long, device=device)[:, None]
         memory_position = torch.arange(key_length, dtype=torch.long, device=device)[None, :]
         relative_position = (context_position - memory_position)
-        relative_position = -1 * torch.abs(relative_position)
+        # relative_position = -1 * torch.abs(relative_position)
         left_right = (context_position - memory_position)
-        left_right = torch.where(left_right > 0, 0.5, 2)
+        left_right = torch.where(left_right > 0, -0.5, 2)
         relative_position = relative_position * left_right
 
         slopes = get_slopes(CUR_MODEL.byt5config.num_heads)
