@@ -12,42 +12,6 @@ LOOP_ALL_COUNT = 0
 LOOP_CUR_COUNT = 0
 LOOP_TOKEN_COUNT = 0
 
-# def tk_loop(tokenizer, texts, pad_id=0, is_test=False):
-#     global LOOP_ALL_COUNT
-#     global LOOP_CUR_COUNT
-#     global LOOP_TOKEN_COUNT
-#     texts_tkd = []
-#     len_max = 0
-
-#     if is_test:
-#         len_max = 1024 # for test oom
-
-#     for text in texts:
-#         LOOP_CUR_COUNT += 1
-#         if LOOP_CUR_COUNT % 1000 == 0:
-#             progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
-#             print(f'{progress:.6f}', end='\r', flush=True)
-#         ids = tokenizer(text, max_length=1024)
-#         texts_tkd.append(ids)
-#         cur_len = len(ids)
-#         LOOP_TOKEN_COUNT += cur_len
-#         if cur_len > len_max:
-#             len_max = cur_len
-
-#     texts_tkd_padded = []
-#     for ids in texts_tkd:
-#         LOOP_CUR_COUNT += 1
-#         progress = LOOP_CUR_COUNT / LOOP_ALL_COUNT
-#         print(f'{progress:.6f}', end='\r', flush=True)
-#         len_ids = len(ids)
-#         len_pad = len_max - len_ids
-#         if len_pad > 0:
-#             ids = ids + [pad_id for x in range(len_pad)]
-#         texts_tkd_padded.append(ids)
-    
-#     print('\nmax ids len: ', len_max)    
-#     return texts_tkd_padded   
-
 def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1):
     if ddp_rank != 0 and ddp_rank != -1:
         dist.barrier()
