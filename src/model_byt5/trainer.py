@@ -173,7 +173,9 @@ def validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_dat
                         raw_model,
                         train_config,
                         is_minimal_loss,
-                        optimizer)            
+                        optimizer)     
+
+    return it_cur_estimate_loss,  it_min_estimate_loss    
 
 def log_format(train_config,
                 it_index_of_epoch,
@@ -378,9 +380,9 @@ def train_loop(model_,
                 
                 # Quickly verify a gradient iteration and checkpoints saving
                 if it_cur_iter_index % train_config.n_iters_for_estimate_loss == 1 and is_master_process:
-                    validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
-                            it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
-                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss)
+                    it_cur_estimate_loss,  it_min_estimate_loss = validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
+                                                                            it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
+                                                                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss)
                                 
                 # determine and set the learning rate for this iteration
                 lr = get_lr(it_cur_iter_index,
@@ -452,9 +454,9 @@ def train_loop(model_,
 
                 is_last_iter = train_config.n_sample - it_cur_sample_offset < train_config.batch_size * train_config.gradient_accumulation_steps
                 if is_last_iter:
-                    validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
-                            it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
-                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss)
+                    it_cur_estimate_loss,  it_min_estimate_loss = validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
+                                                                            it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
+                                                                            it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss)
 
                 # Samples consumed in one iter equals: gradient_accumulation_steps * batch_size.
 
