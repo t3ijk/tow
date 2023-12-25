@@ -289,7 +289,7 @@ def train_loop(model_,
         with open(f'{resume_path}/config.json') as f:
             config = json.load(f)
         model = Transformer_byt5(config=config)
-        model.load_state_dict(torch.load(f'{resume_path}/pytorch_model.bin'))
+        model.load_state_dict(torch.load(f'{resume_path}/pytorch_model.bin'), map_location=torch.device(device))
         model = model.train()
         with open(f'{resume_path}/train_config.json') as f:
             cf = json.load(f)
