@@ -289,7 +289,10 @@ def train_loop(model_,
         with open(f'{resume_path}/config.json') as f:
             config = json.load(f)
         model = Transformer_byt5(config=config)
-        model.load_state_dict(torch.load(f'{resume_path}/pytorch_model.bin', map_location=torch.device(device)))
+        model.load_state_dict(torch.load(f'{resume_path}/pytorch_model.bin'))
+
+        # resume and set device
+        model.to(torch.device(device))
         model = model.train()
         with open(f'{resume_path}/train_config.json') as f:
             cf = json.load(f)
@@ -301,7 +304,7 @@ def train_loop(model_,
                                         train_config.learning_rate,
                                         (train_config.beta1, train_config.beta2),
                                         train_config.device_type)
-        optimizer.load_state_dict(torch.load(f'{resume_path}/optimizer.bin', map_location=torch.device(device)))
+        optimizer.load_state_dict(torch.load(f'{resume_path}/optimizer.bin'))
 
         last_t = time.time()
         with open(f'{resume_path}/it_info.json') as f:
