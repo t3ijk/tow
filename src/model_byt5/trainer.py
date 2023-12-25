@@ -301,7 +301,7 @@ def train_loop(model_,
                                         train_config.learning_rate,
                                         (train_config.beta1, train_config.beta2),
                                         train_config.device_type)
-        optimizer.load_state_dict(torch.load(f'{resume_path}/optimizer.bin'))
+        optimizer.load_state_dict(torch.load(f'{resume_path}/optimizer.bin', map_location=torch.device(device)))
 
         last_t = time.time()
         with open(f'{resume_path}/it_info.json') as f:
