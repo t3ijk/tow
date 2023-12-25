@@ -167,6 +167,7 @@ def validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_dat
         'it_date': f"{datetime.datetime.utcnow().isoformat()}",
         'it_tokens_consumed': it_tokens_consumed,
         'is_resume_training': is_resume_training,
+        'it_torch_rng_state': torch.get_rng_state().tolist(),
     }    
     save_checkpoints(it_info,
                         checkpoints_path,
@@ -319,6 +320,8 @@ def train_loop(model_,
             it_index_of_epoch_resume = it_info['it_index_of_epoch']
             it_cur_sample_offset_resume = it_info['it_cur_sample_offset']
             it_micro_step_index_cur_epoch_resume = it_info['it_micro_step_index_cur_epoch']
+            it_torch_rng_state = torch.tensor(it_info['it_torch_rng_state'], dtype=torch.uint8).to(torch.device(device))
+            torch.set_rng_state(it_torch_rng_state)
     
     else:
         print('is_resume_training', is_resume_training)
