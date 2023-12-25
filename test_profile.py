@@ -33,16 +33,16 @@ else:
     model = model.eval()
 
 tokenizer = Tokenizer_byt5()  
-ids = tokenizer('aaaaaaaaaaaaaaaaaaa', max_length=1024)
-len_pad = 1024 - len(ids)
+ids = tokenizer('aaaaaaaaaaaaaaaaaaa', max_length=512)
+len_pad = 512 - len(ids)
 if len_pad > 0:
     ids = ids + [0 for x in range(len_pad)]
 print(ids)  
 inputs = torch.tensor([ids]).to(torch.device('cpu'))
-# outputs = model.generate(inputs, max_length=1024)
+# outputs = model.generate(inputs, max_length=512)
 # text = tokenizer.ids2text(outputs.tolist()[0])
 # print(text)
 
 with profile(activities=[ProfilerActivity.CPU], profile_memory=True, record_shapes=True, with_stack=True) as prof:
-    model.generate(inputs, max_length=1024)
+    model.generate(inputs, max_length=512)
 print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=100))

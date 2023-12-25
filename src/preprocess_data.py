@@ -12,7 +12,7 @@ LOOP_ALL_COUNT = 0
 LOOP_CUR_COUNT = 0
 LOOP_TOKEN_COUNT = 0
 
-def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1, max_ids_len=1024):
+def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1, max_ids_len=512):
     if ddp_rank != 0 and ddp_rank != -1:
         dist.barrier()
 
