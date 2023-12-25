@@ -128,6 +128,9 @@ def test_train():
     size = floor(len(jsonl_tra_all) / env_info['ddp_world_size'])
     jsonl_tra = jsonl_tra_all[ddp_rank*size: (ddp_rank+1)*size]
     print('ddp_rank, size, len(jsonl_tra): ', ddp_rank, size, len(jsonl_tra))
+    
+    # test resume
+    torch.manual_seed(1)
     train_loop(model,
                 preprocessed_data_path=preprocessed_data_path,
                 training_data=jsonl_tra,  # train data
