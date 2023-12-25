@@ -131,6 +131,7 @@ def test_train():
     
     # test resume
     torch.manual_seed(1)
+    print('env_info', env_info)
     train_loop(model,
                 preprocessed_data_path=preprocessed_data_path,
                 training_data=jsonl_tra,  # train data
