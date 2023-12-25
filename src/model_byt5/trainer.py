@@ -168,7 +168,7 @@ def validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_dat
         'it_tokens_consumed': it_tokens_consumed,
         'is_resume_training': is_resume_training,
         'it_torch_rng_state': torch.random.get_rng_state().tolist(),
-        'it_torch_cuda_rng_state': torch.cuda.random.get_rng_state().tolist(),
+        'it_torch_cuda_rng_state': torch.cuda.random.get_rng_state().tolist() if torch.cuda.is_available() else None,
     }    
     save_checkpoints(it_info,
                         checkpoints_path,
@@ -324,7 +324,9 @@ def train_loop(model_,
             it_torch_rng_state = torch.tensor(it_info['it_torch_rng_state'], dtype=torch.uint8)
             it_torch_cuda_rng_state = torch.tensor(it_info['it_torch_cuda_rng_state'], dtype=torch.uint8)
             torch.random.set_rng_state(it_torch_rng_state)
-            torch.cuda.random.set_rng_state(it_torch_cuda_rng_state)
+
+            if torch.cuda.is_available():
+                torch.cuda.random.set_rng_state(it_torch_cuda_rng_state)
     
     else:
         print('is_resume_training', is_resume_training)
