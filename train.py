@@ -23,7 +23,9 @@ tag = sys.argv[2]
 is_test = tag == 'test'
 
 checkpoints_path = f'./checkpoints_{tag}'
-preprocessed_data_path = f'./preprocessed_data_tow_byt5_{tag}.jsonl'
+
+MAX_IDS_LEN = 512
+preprocessed_data_path = f'./preprocessed_data_tow_byt5_{tag}.jsonl_{MAX_IDS_LEN}'
 
 base_model_path = path
 model_weights_path = f"{base_model_path}/pytorch_model.bin"
@@ -88,7 +90,7 @@ def get_data(preprocessed_data_path):
         data = data[0: 200]
 
     ddp_rank = get_ddp_rank()
-    jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data, ddp_rank=ddp_rank, max_ids_len=512)
+    jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data, ddp_rank=ddp_rank, max_ids_len=MAX_IDS_LEN)
     return jsonl_positions_for_seek
 
 def get_env():
