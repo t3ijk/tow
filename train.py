@@ -59,13 +59,13 @@ def get_data(preprocessed_data_path):
 
     files = [ 
         # file, from, to
-        {'path': './data/WikiMatrix.en-es.tsv', 'src': 'en', 'to': 'es', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
-        {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
-        {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 250000},
-        {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
-        {'path': './data/WikiMatrix.es-zh.tsv', 'src': 'es', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
-        {'path': './data/WikiMatrix.es-ja.tsv', 'src': 'es', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
-        {'path': './data/news-commentary-v14.en-zh.cleaned.tsv', 'src': 'en', 'to': 'zh', 'c_b': 0, 'c_e': 2, 'nrows': 250000},
+        {'path': './data/WikiMatrix.en-es.tsv', 'src': 'en', 'to': 'es', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+        {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+        {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
+        {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+        {'path': './data/WikiMatrix.es-zh.tsv', 'src': 'es', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+        {'path': './data/WikiMatrix.es-ja.tsv', 'src': 'es', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+        {'path': './data/news-commentary-v14.en-zh.cleaned.tsv', 'src': 'en', 'to': 'zh', 'c_b': 0, 'c_e': 2, 'nrows': 500000},
         ]
     data = []
     for file in files:
@@ -139,8 +139,8 @@ def test_train():
                 training_data=jsonl_tra,  # train data
                 validation_data=jsonl_val, # validation data
                 checkpoints_path=checkpoints_path,
-                n_epoch_=1,
-                batch_size_=2,
+                n_epoch_=3,
+                batch_size_=4,
                 resume_path=None,
                 device=env_info['device'],
                 n_iters_for_estimate_loss_=2 if is_test else 1000,
