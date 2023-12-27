@@ -99,12 +99,15 @@ def get_data(preprocessed_data_path):
             all_texts.append(f"{to}2{src}:{text1}")
             all_labels.append(f"{text0}")
 
-        random.Random(0).shuffle(all_texts)
-        random.Random(0).shuffle(all_labels)
+        random.Random(999).shuffle(all_texts)
+        random.Random(999).shuffle(all_labels)
 
         if is_test:
-            all_texts = all_texts[0: 200]
-            all_labels = all_labels[0: 200]
+            n_test = 200
+            all_texts = all_texts[0: n_test]
+            all_labels = all_labels[0: n_test]
+            for i in range(n_test):
+                print(f'[{i}]{all_texts[i]}\n{all_labels[i]}')
 
         print(f'len all_texts: {len(all_texts):,}')
         print(f'len all_labels: {len(all_labels):,}')
@@ -161,10 +164,10 @@ def test_train():
                 validation_data=jsonl_val, # validation data
                 checkpoints_path=checkpoints_path,
                 n_epoch_=3,
-                batch_size_=4,
+                batch_size_=5,
                 resume_path=None,
                 device=env_info['device'],
-                n_iters_for_estimate_loss_=2 if is_test else 1000,
+                n_iters_for_estimate_loss_=2 if is_test else 1500,
                 gradient_accumulation_steps_=2 if is_test else 20,
                 warmup_iters_=3000,
                 env_info=env_info)
