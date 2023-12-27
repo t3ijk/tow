@@ -57,6 +57,8 @@ def get_model():
 
 def get_data(preprocessed_data_path):
     ddp_rank = get_ddp_rank()
+    all_texts = []
+    all_labels = []
     if ddp_rank == 0 or ddp_rank == -1:
         files = [ 
             # file, from, to
@@ -86,9 +88,6 @@ def get_data(preprocessed_data_path):
         print(f'len data: {len(data):,}')
 
         # enhance
-        all_texts = []
-        all_labels = []
-
         for it in data:
             text0 = it[0]
             text1 = it[1]
