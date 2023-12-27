@@ -8,45 +8,13 @@ import json
 import sys
 import torch.distributed as dist
 
-LOOP_ALL_COUNT = 0
-LOOP_CUR_COUNT = 0
-LOOP_TOKEN_COUNT = 0
-
-def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-1, max_ids_len=512):
+def preprocess_data(tokenizer, preprocessed_data_path, all_texts, all_labels, ddp_rank=-1, max_ids_len=512):
     if ddp_rank != 0 and ddp_rank != -1:
         dist.barrier()
-
-    all_texts = []
-    all_labels = []
-
-    for it in data:
-        text0 = it[0]
-        text1 = it[1]
-        src = it[2]
-        to = it[3]
-        all_texts.append(f"{src}2{to}:{text0}")
-        all_labels.append(f"{text1}")
-        all_texts.append(f"{to}2{src}:{text1}")
-        all_labels.append(f"{text0}")
-
-    random.Random(0).shuffle(all_texts)
-    random.Random(0).shuffle(all_labels)
-
-    global LOOP_ALL_COUNT
-    global LOOP_CUR_COUNT
-    LOOP_ALL_COUNT = len(all_texts) * 4 # tk_loop twice, labels and texts
-    LOOP_CUR_COUNT = 0
-
-    print(f'len all_texts: {len(all_texts):,}')
-    print(f'len all_labels: {len(all_labels):,}')
-    if len(all_texts) != len(all_labels):
-        raise Exception('?')
 
     isExist = os.path.exists(preprocessed_data_path)
     if not isExist:
         print('tokenizing...', preprocessed_data_path)
-        # all_texts_ids = tk_loop(tokenizer, all_texts, pad_id=0, is_test=is_test)
-        # all_labels_ids = tk_loop(tokenizer, all_labels, pad_id=-100, is_test=is_test)
         fd = os.open(preprocessed_data_path, os.O_RDWR | os.O_CREAT)
         line_index = 0
         pos_offset = 0
@@ -78,7 +46,6 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
             os.write(fd, bytes(line, 'utf-8'))
         os.fsync(fd)
         os.close(fd)
-        print('TOKEN_COUNT: ', LOOP_TOKEN_COUNT)
         if ddp_rank == 0:
             dist.barrier()
     else:
@@ -88,8 +55,6 @@ def preprocess_data(tokenizer, preprocessed_data_path, is_test, data, ddp_rank=-
         line_index = 0
         pos_offset = 0
         jsonl_positions_for_seek = []
-        all_texts_ids = []
-        all_labels_ids = []
         while line:
             line = fh.readline()
             if line:

@@ -56,41 +56,62 @@ def get_model():
     return model
 
 def get_data(preprocessed_data_path):
-
-    files = [ 
-        # file, from, to
-        {'path': './data/WikiMatrix.en-es.tsv', 'src': 'en', 'to': 'es', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
-        {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
-        {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
-        {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
-        {'path': './data/WikiMatrix.es-zh.tsv', 'src': 'es', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
-        {'path': './data/WikiMatrix.es-ja.tsv', 'src': 'es', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
-        {'path': './data/news-commentary-v14.en-zh.cleaned.tsv', 'src': 'en', 'to': 'zh', 'c_b': 0, 'c_e': 2, 'nrows': 500000},
-        ]
-    data = []
-    for file in files:
-        path = file['path']
-        src = file['src']
-        to = file['to']
-        c_b = file['c_b']
-        c_e = file['c_e']
-        to = file['to']
-        nrows = file['nrows']
-        data_df = pd.read_csv(path, sep='\t',  on_bad_lines='skip', nrows=nrows).iloc[:, c_b:c_e]
-        data_df['src'] = src
-        data_df['to'] = to
-        data = [*data, *data_df.values.tolist()]
-        print(path, data_df["src"].value_counts()) 
-
-    # todo: data -> data enhance -> shuffle -> preprocess_data_no_shuffle
-    random.Random(0).shuffle(data)    
-    print(f'len data: {len(data):,}')
-
-    if is_test:
-        data = data[0: 200]
-
     ddp_rank = get_ddp_rank()
-    jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, is_test, data, ddp_rank=ddp_rank, max_ids_len=MAX_IDS_LEN)
+    if ddp_rank == 0 or ddp_rank == -1:
+        files = [ 
+            # file, from, to
+            {'path': './data/WikiMatrix.en-es.tsv', 'src': 'en', 'to': 'es', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+            {'path': './data/WikiMatrix.en-ja.tsv', 'src': 'en', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+            {'path': './data/WikiMatrix.en-zh.tsv', 'src': 'en', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 500000},
+            {'path': './data/WikiMatrix.ja-zh.tsv', 'src': 'ja', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+            {'path': './data/WikiMatrix.es-zh.tsv', 'src': 'es', 'to': 'zh', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+            {'path': './data/WikiMatrix.es-ja.tsv', 'src': 'es', 'to': 'ja', 'c_b': 1, 'c_e': 3, 'nrows': 1000000},
+            {'path': './data/news-commentary-v14.en-zh.cleaned.tsv', 'src': 'en', 'to': 'zh', 'c_b': 0, 'c_e': 2, 'nrows': 500000},
+            ]
+        data = []
+        for file in files:
+            path = file['path']
+            src = file['src']
+            to = file['to']
+            c_b = file['c_b']
+            c_e = file['c_e']
+            to = file['to']
+            nrows = file['nrows']
+            data_df = pd.read_csv(path, sep='\t',  on_bad_lines='skip', nrows=nrows).iloc[:, c_b:c_e]
+            data_df['src'] = src
+            data_df['to'] = to
+            data = [*data, *data_df.values.tolist()]
+            print(path, data_df["src"].value_counts()) 
+
+        print(f'len data: {len(data):,}')
+
+        # enhance
+        all_texts = []
+        all_labels = []
+
+        for it in data:
+            text0 = it[0]
+            text1 = it[1]
+            src = it[2]
+            to = it[3]
+            all_texts.append(f"{src}2{to}:{text0}")
+            all_labels.append(f"{text1}")
+            all_texts.append(f"{to}2{src}:{text1}")
+            all_labels.append(f"{text0}")
+
+        random.Random(0).shuffle(all_texts)
+        random.Random(0).shuffle(all_labels)
+
+        if is_test:
+            all_texts = all_texts[0: 200]
+            all_labels = all_labels[0: 200]
+
+        print(f'len all_texts: {len(all_texts):,}')
+        print(f'len all_labels: {len(all_labels):,}')
+        if len(all_texts) != len(all_labels):
+            raise Exception('?')    
+
+    jsonl_positions_for_seek = preprocess_data(Tokenizer_byt5(), preprocessed_data_path, all_texts, all_labels, ddp_rank=ddp_rank, max_ids_len=MAX_IDS_LEN)
     return jsonl_positions_for_seek
 
 def get_env():
@@ -121,7 +142,7 @@ def test_train():
     train_check(model, checkpoints_path, config)
     env_info = get_env()
     jsonl = get_data(preprocessed_data_path)
-    n_val = 30
+    n_val = 60
 
     jsonl_val = jsonl[0:n_val]
     jsonl_tra_all = jsonl[n_val:]
