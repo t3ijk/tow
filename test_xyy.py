@@ -1,6 +1,6 @@
 
-from src.model_byt5.tokenizer import Tokenizer_byt5
-from src.model_byt5.model import Transformer_byt5
+from tow.model_byt5.tokenizer import Tokenizer_byt5
+from tow.model_byt5.model import Transformer_byt5
 import torch
 import json
 model = None

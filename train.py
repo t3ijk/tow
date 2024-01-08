@@ -1,17 +1,17 @@
-from src.model_byt5.tokenizer import Tokenizer_byt5
-from src.model_byt5.model import Transformer_byt5
+from tow.model_byt5.tokenizer import Tokenizer_byt5
+from tow.model_byt5.model import Transformer_byt5
 from convert import hf_model_weight_name_mapping
 import torch
 import json
 from collections import OrderedDict
 import time
-from src.model_byt5.trainer import train_loop, train_check
+from tow.model_byt5.trainer import train_loop, train_check
 import shutil
 import os
 import pandas as pd
 import sys
 import random
-from src.preprocess_data import preprocess_data
+from tow.preprocess_data import preprocess_data
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 from math import floor
