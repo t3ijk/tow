@@ -13,7 +13,7 @@ def translate(model_path, inputs):
 
     state_dict = torch.load(model_weights_path)
     model = Transformer_byt5(config=config)
-    model.load_state_dict(state_dict, strict=False)
+    model.load_state_dict(state_dict)
     model = model.eval()
     tokenizer = Tokenizer_byt5()  
     ids = tokenizer(inputs, max_length=512)
