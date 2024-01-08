@@ -11,7 +11,7 @@ def translate(model_path, inputs):
     with open(model_config_path, 'r') as f:
         config = json.load(f)
 
-    state_dict = torch.load(model_weights_path)
+    state_dict = torch.load(model_weights_path, map_location=torch.device('cpu'))
     model = Transformer_byt5(config=config)
     model.load_state_dict(state_dict)
     model = model.eval()
