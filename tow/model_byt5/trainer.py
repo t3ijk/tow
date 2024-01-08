@@ -1,16 +1,16 @@
 
 import inspect
 import torch
-from src.model_byt5.model import Transformer_byt5
+from tow.model_byt5.model import Transformer_byt5
 import os
 import json
 from dataclasses import dataclass, asdict
 import shutil
-from src.utils import delete_files_in_directory
+from tow.utils import delete_files_in_directory
 import math
 import time
 import datetime
-from src.model_byt5.tokenizer import Tokenizer_byt5
+from tow.model_byt5.tokenizer import Tokenizer_byt5
 from dataclasses import dataclass, asdict
 import re
 import random
