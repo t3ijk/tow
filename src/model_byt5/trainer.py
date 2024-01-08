@@ -464,7 +464,7 @@ def train_loop(model_,
                 it_cur_iter_index += 1
 
                 is_last_iter = train_config.n_sample - it_cur_sample_offset < train_config.batch_size * train_config.gradient_accumulation_steps
-                if is_last_iter:
+                if is_last_iter and is_master_process:
                     it_cur_estimate_loss,  it_min_estimate_loss = validate(it_cur_iter_index, train_config, jsonl_f, raw_model, validation_data, device, it_cur_micro_step_index,
                                                                             it_cur_sample_offset, it_micro_step_index_cur_epoch, it_micro_step_num_per_epoch, it_index_of_epoch,
                                                                             it_tokens_consumed, is_resume_training, checkpoints_path, optimizer, it_min_estimate_loss)
