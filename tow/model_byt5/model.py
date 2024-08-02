@@ -428,7 +428,7 @@ class Transformer_byt5(nn.Module):
              layer.masked_multi_head_attention.cached_kv_hidden_states = None
 
     @torch.no_grad()
-    def generate(self, inputs, max_length, use_cache=True):
+    def generate(self, inputs, max_length, use_cache=True, stream=False):
         # encode
         encoder_hidden_states = self.encode(inputs)
         # decode
@@ -452,6 +452,8 @@ class Transformer_byt5(nn.Module):
                 last_outputs = torch.cat((last_outputs, outputs), 1)
             else:
                 last_outputs = outputs
+            if stream:
+                yield last_outputs   
         CUR_MODEL.use_cache = False
         self.clean_caches()
         return last_outputs
